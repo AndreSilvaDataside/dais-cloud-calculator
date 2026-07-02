@@ -368,9 +368,9 @@ a conta aberta para o arquiteto conseguir rastrear e conferir.
 
 | Tipo de cluster     | DBU/hora por nó | Preço/DBU (sa-east-1) |
 | ------------------- | --------------- | --------------------- |
-| Jobs Compute        | 1.0 DBU         | aprox. $0.20          |
-| All-Purpose Compute | 1.0 DBU         | aprox. $0.40          |
-| Jobs Compute Light  | 0.5 DBU         | aprox. $0.20          |
+| Jobs Compute        | 1.0 DBU         | ~$0.20                |
+| All-Purpose Compute | 1.0 DBU         | ~$0.40                |
+| Jobs Compute Light  | 0.5 DBU         | ~$0.20                |
 
 #### Fórmula
 
