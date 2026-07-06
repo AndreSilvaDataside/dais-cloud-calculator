@@ -10,27 +10,7 @@ Skill para Claude Code que gera estimativas de custo em nuvem a partir de uma co
 
 ## Como rodar
 
-Pré-requisitos: Node.js 18+ e Claude Code (extensão VS Code ou CLI).
-
-```bash
-# 1. Clonar com o submódulo do MCP
-git clone --recurse-submodules https://github.com/seu-usuario/seu-repo.git
-cd seu-repo
-
-# 2. Build do MCP server
-cd plugin/mcps/aws-pricing-calculator
-npm install && npm run build
-cd ../../..
-
-# 3. Registrar o MCP no Claude Code
-claude mcp add aws-pricing-calculator node "$(pwd)/plugin/mcps/aws-pricing-calculator/dist/mcp-server.js"
-
-# 4. Instalar o comando /cotar_cloud
-mkdir -p .claude/commands
-cp plugin/skills/cotar_cloud/SKILL.md .claude/commands/cotar_cloud.md
-```
-
-Reinicie o Claude Code e teste com `/cotar_cloud`. Instruções detalhadas em [plugin/INSTALL.md](plugin/INSTALL.md).
+Veja [plugin/INSTALL.md](plugin/INSTALL.md).
 
 ---
 
@@ -93,11 +73,9 @@ Arquiteto → /cotar_cloud + descrição do cliente
 
 **Databricks:** não existe API que gere links programáticos da calculadora Databricks. A solução adotada foi calcular o custo de DBU com a fórmula oficial (`DBU/hora × nós × horas/mês × preço/DBU`), usando a tabela de preços pay-as-you-go de sa-east-1 como referência. A conta é apresentada aberta para o arquiteto rastrear e conferir. Ao final, a skill instrui o arquiteto a validar o valor em `databricks.com/product/pricing` e anexar o print à proposta.
 
-**Expandir Skill:** Publicar repositório para ser possível usar em outras
-
 ---
 
-## O que faríamos diferente/Passos futuros
+## O que faríamos diferente/Features futuras
 
 **Cobrir Azure:** a Azure Retail Prices API (`prices.azure.com`) é pública e sem autenticação — dá para buscar preços de qualquer serviço. O problema é que não há API equivalente para gerar um link compartilhável da Azure Pricing Calculator. A solução viável para V2 é um browser agent (Playwright ou Claude in Chrome) que preenche a calculadora e exporta o link, replicando o que o MCP faz para a AWS.
 

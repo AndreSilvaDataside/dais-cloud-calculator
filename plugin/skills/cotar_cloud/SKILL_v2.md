@@ -1,3 +1,13 @@
+---
+description: Gera estimativa oficial AWS Pricing Calculator a partir de uma conversa guiada com o arquiteto, com suporte a arquiteturas padrão Dataside. Retorna link compartilhável para envio ao parceiro AWS.
+allowed-tools:
+  - mcp__aws-pricing-calculator__search_services
+  - mcp__aws-pricing-calculator__get_service_fields
+  - mcp__aws-pricing-calculator__create_estimate
+  - mcp__aws-pricing-calculator__add_service
+  - mcp__aws-pricing-calculator__export_estimate
+---
+
 # /cotar_cloud — Cotação de Arquitetura AWS (com arquiteturas Dataside)
 
 Gera uma estimativa oficial no AWS Pricing Calculator a partir de uma conversa
@@ -58,22 +68,20 @@ corporativo, Big Data com processamento distribuído pesado. Indicada quando o c
 não possui licença Databricks ou prefere permanecer em serviços nativos AWS.
 
 Serviços:
-
-- Ingestão (bancos): AWS DMS — replicação contínua de Oracle, MongoDB, SQL
-- Ingestão (SaaS/APIs): AWS AppFlow — Google Analytics, Salesforce e outras APIs SaaS
-- Ingestão (arquivos): AWS Glue — catálogo + ingestão de arquivos planos e APIs REST
-- Storage: Amazon S3 — camadas Bronze (bruto), Silver (limpo), Gold (modelado)
-- Processamento: Amazon EMR + Apache Spark (SQL Notebooks) — transformações distribuídas
-- Orquestração: AWS Step Functions — coordenação do pipeline de ponta a ponta
-- Serving (DW): Amazon Redshift — Data Warehouse analítico de alta performance
-- Serving (ad-hoc): Amazon Athena — queries SQL serverless direto no S3
-- BI & IA: Power BI / Amazon QuickSight + ferramentas de IA (All Layer)
-- Governança: Lake Formation + Glue Data Catalog + DataBrew/Data Quality
-- Segurança: IAM, KMS, VPC com endpoints privados
-- Monitoramento: Amazon CloudWatch
+- Ingestão (bancos):      AWS DMS — replicação contínua de Oracle, MongoDB, SQL
+- Ingestão (SaaS/APIs):   AWS AppFlow — Google Analytics, Salesforce e outras APIs SaaS
+- Ingestão (arquivos):    AWS Glue — catálogo + ingestão de arquivos planos e APIs REST
+- Storage:                Amazon S3 — camadas Bronze (bruto), Silver (limpo), Gold (modelado)
+- Processamento:          Amazon EMR + Apache Spark (SQL Notebooks) — transformações distribuídas
+- Orquestração:           AWS Step Functions — coordenação do pipeline de ponta a ponta
+- Serving (DW):           Amazon Redshift — Data Warehouse analítico de alta performance
+- Serving (ad-hoc):       Amazon Athena — queries SQL serverless direto no S3
+- BI & IA:                Power BI / Amazon QuickSight + ferramentas de IA (All Layer)
+- Governança:             Lake Formation + Glue Data Catalog + DataBrew/Data Quality
+- Segurança:              IAM, KMS, VPC com endpoints privados
+- Monitoramento:          Amazon CloudWatch
 
 Observações:
-
 - Arquitetura mais completa em serviços nativos AWS — sem dependência de fornecedor externo
 - EMR é o serviço mais custoso; validar se o volume de dados justifica vs. alternativas menores
 - Redshift tem custo fixo de instância — avaliar Serverless para cargas intermitentes
@@ -89,22 +97,20 @@ já possui ou quer adotar Databricks como plataforma central, mantendo serviços
 de suporte.
 
 Serviços:
-
-- Ingestão (bancos): AWS DMS — replicação contínua de Oracle, MongoDB, SQL
-- Ingestão (SaaS/APIs): Databricks Lakeflow — substitui AppFlow para ingestão nativa de SaaS e APIs
-- Ingestão (arquivos): AWS Glue — catálogo + ingestão de arquivos planos
-- Storage: Amazon S3 (Delta Lake / Delta Open Sharing) — Bronze, Silver, Gold
-- Processamento: Databricks (clusters Apache Spark + SQL Notebooks) — substitui EMR
-- Orquestração: AWS Step Functions — coordenação serverless do pipeline
-- Serving (DW): Databricks SQL Warehouse — substitui Redshift; DW nativo sobre o Lakehouse
-- Serving (ad-hoc): Amazon Athena — queries serverless direto no S3
-- BI & IA: Power BI / Amazon QuickSight + ferramentas de IA (All Layer)
-- Governança: Lake Formation + Glue Data Catalog + DataBrew/Data Quality + Unity Catalog (Databricks)
-- Segurança: IAM, KMS, VPC/RAM
-- Monitoramento: Amazon CloudWatch
+- Ingestão (bancos):      AWS DMS — replicação contínua de Oracle, MongoDB, SQL
+- Ingestão (SaaS/APIs):   Databricks Lakeflow — substitui AppFlow para ingestão nativa de SaaS e APIs
+- Ingestão (arquivos):    AWS Glue — catálogo + ingestão de arquivos planos
+- Storage:                Amazon S3 (Delta Lake / Delta Open Sharing) — Bronze, Silver, Gold
+- Processamento:          Databricks (clusters Apache Spark + SQL Notebooks) — substitui EMR
+- Orquestração:           AWS Step Functions — coordenação serverless do pipeline
+- Serving (DW):           Databricks SQL Warehouse — substitui Redshift; DW nativo sobre o Lakehouse
+- Serving (ad-hoc):       Amazon Athena — queries serverless direto no S3
+- BI & IA:                Power BI / Amazon QuickSight + ferramentas de IA (All Layer)
+- Governança:             Lake Formation + Glue Data Catalog + DataBrew/Data Quality + Unity Catalog (Databricks)
+- Segurança:              IAM, KMS, VPC/RAM
+- Monitoramento:          Amazon CloudWatch
 
 Observações:
-
 - Databricks substitui EMR (processamento) e Redshift (serving) — reduz serviços AWS mas adiciona custo DBU
 - Calcular SEMPRE EC2 no estimate AWS + DBU separado — nunca somar duas vezes
 - Lakeflow simplifica ingestão de SaaS vs. AppFlow — verificar disponibilidade de conectores para o cliente
@@ -120,22 +126,20 @@ armazenamento, processamento e DW corporativo. Indicada quando o cliente já pos
 Snowflake ou prefere sua capacidade de Data Sharing e governança nativa.
 
 Serviços:
-
-- Ingestão (bancos): AWS DMS — replicação contínua de Oracle, MongoDB, SQL
-- Ingestão (SaaS/APIs): Snowflake (conectores nativos) — substitui AppFlow/Lakeflow para SaaS e APIs
-- Ingestão (arquivos): AWS Glue — catálogo + ingestão de arquivos planos
-- Storage: Amazon S3 + Snowflake (tabelas gerenciadas e externas) — Bronze, Silver, Gold
-- Processamento: Snowflake (queries + pipelines + Snowpark) — substitui EMR/Databricks
-- Orquestração: AWS Step Functions — coordenação serverless e acionamento de fluxos
-- Serving (DW): Snowflake Data Warehouse — motor analítico centralizado
-- Serving (ad-hoc): Amazon Athena — queries serverless paralelas no S3
-- BI & IA: Power BI / Amazon QuickSight + aplicações de IA avançada (All Layer)
-- Governança: Lake Formation + Glue Data Catalog + DataBrew + Snowflake Access Control
-- Segurança: IAM, KMS, VPC/RAM
-- Monitoramento: Amazon CloudWatch
+- Ingestão (bancos):      AWS DMS — replicação contínua de Oracle, MongoDB, SQL
+- Ingestão (SaaS/APIs):   Snowflake (conectores nativos) — substitui AppFlow/Lakeflow para SaaS e APIs
+- Ingestão (arquivos):    AWS Glue — catálogo + ingestão de arquivos planos
+- Storage:                Amazon S3 + Snowflake (tabelas gerenciadas e externas) — Bronze, Silver, Gold
+- Processamento:          Snowflake (queries + pipelines + Snowpark) — substitui EMR/Databricks
+- Orquestração:           AWS Step Functions — coordenação serverless e acionamento de fluxos
+- Serving (DW):           Snowflake Data Warehouse — motor analítico centralizado
+- Serving (ad-hoc):       Amazon Athena — queries serverless paralelas no S3
+- BI & IA:                Power BI / Amazon QuickSight + aplicações de IA avançada (All Layer)
+- Governança:             Lake Formation + Glue Data Catalog + DataBrew + Snowflake Access Control
+- Segurança:              IAM, KMS, VPC/RAM
+- Monitoramento:          Amazon CloudWatch
 
 Observações:
-
 - Custo Snowflake está FORA da AWS Pricing Calculator — estimar à parte via Snowflake pricing (créditos compute + storage)
 - Snowpark (Snowflake) equivale ao Spark — verificar compatibilidade se o cliente já usa notebooks Spark
 - Avaliar Data Sharing como diferencial quando o cliente precisa compartilhar dados com parceiros externos
@@ -151,21 +155,19 @@ unificada (ingestão + processamento + serving), reduzindo ao mínimo os compone
 Variação mais enxuta da Arquitetura 2.
 
 Serviços:
-
-- Ingestão (bancos): AWS DMS — replicação direta de Oracle, MongoDB, SQL para o Data Lake
-- Ingestão (demais): Databricks Lakeflow — centraliza streaming (Kafka), SaaS, APIs e arquivos planos (Excel)
-- Storage: Amazon S3 (Delta Lake) — Bronze (brutos), Silver (enriquecidos), Gold (prontos para consumo)
-- Processamento: Databricks (clusters Apache Spark + SQL Notebooks) — único motor; sem EMR, sem Glue
-- Orquestração: AWS Step Functions — gerencia execuções e gatilhos de ponta a ponta
-- Serving (DW): Databricks SQL Warehouse — DW serverless de alta performance sobre o Lakehouse
-- Serving (ad-hoc): Amazon Athena — queries interativas direto no S3
-- BI & IA: Power BI / Amazon QuickSight + Machine Learning (All Layer)
-- Governança: Lake Formation + Glue Data Catalog + DataBrew/Quality + Unity Catalog (Databricks)
-- Segurança: IAM, KMS, VPC/RAM
-- Monitoramento: Amazon CloudWatch
+- Ingestão (bancos):      AWS DMS — replicação direta de Oracle, MongoDB, SQL para o Data Lake
+- Ingestão (demais):      Databricks Lakeflow — centraliza streaming (Kafka), SaaS, APIs e arquivos planos (Excel)
+- Storage:                Amazon S3 (Delta Lake) — Bronze (brutos), Silver (enriquecidos), Gold (prontos para consumo)
+- Processamento:          Databricks (clusters Apache Spark + SQL Notebooks) — único motor; sem EMR, sem Glue
+- Orquestração:           AWS Step Functions — gerencia execuções e gatilhos de ponta a ponta
+- Serving (DW):           Databricks SQL Warehouse — DW serverless de alta performance sobre o Lakehouse
+- Serving (ad-hoc):       Amazon Athena — queries interativas direto no S3
+- BI & IA:                Power BI / Amazon QuickSight + Machine Learning (All Layer)
+- Governança:             Lake Formation + Glue Data Catalog + DataBrew/Quality + Unity Catalog (Databricks)
+- Segurança:              IAM, KMS, VPC/RAM
+- Monitoramento:          Amazon CloudWatch
 
 Observações:
-
 - AWS Glue REMOVIDO da ingestão — Lakeflow cobre SaaS, APIs, arquivos e streaming
 - Arquitetura mais simples operacionalmente: menos serviços AWS para gerenciar
 - Calcular SEMPRE EC2 no estimate AWS + DBU separado — nunca somar duas vezes
@@ -191,7 +193,7 @@ para gerar o estimate. Não faça um interrogatório — faça uma conversa.
 
 Exemplos de invocação válida que você deve aceitar e seguir em frente:
 
-- `/cotar_cloud` _(sem nada mais)_
+- `/cotar_cloud` *(sem nada mais)*
 - `/cotar_cloud cliente bancário precisa centralizar dados de RH com analytics`
 - `/cotar_cloud quero cotar um Databricks pra um cliente de varejo`
 - `/cotar_cloud S3, Databricks, RDS, Secrets Manager, região São Paulo`
@@ -268,20 +270,20 @@ Com a arquitetura confirmada, colete o dimensionamento **uma ou duas perguntas
 por vez**. Conforme as respostas chegam, confirme o que entendeu e pergunte
 o próximo ponto em aberto. Use tom consultivo:
 
-- _"Entendido — S3 com 500 GB em sa-east-1. Para o Databricks, você está
+- *"Entendido — S3 com 500 GB em sa-east-1. Para o Databricks, você está
   pensando em pipelines agendados (Job Cluster) ou notebooks interativos
-  também (All-Purpose)?"_
-- _"Legal. Esse Job Cluster roda quantas horas por dia, em média? E quantos
-  dias por mês?"_
-- _"Você mencionou RDS — qual engine? MySQL, PostgreSQL? E a instância,
-  você já tem em mente ou prefere uma sugestão?"_
+  também (All-Purpose)?"*
+- *"Legal. Esse Job Cluster roda quantas horas por dia, em média? E quantos
+  dias por mês?"*
+- *"Você mencionou RDS — qual engine? MySQL, PostgreSQL? E a instância,
+  você já tem em mente ou prefere uma sugestão?"*
 
 Se o arquiteto não souber, **sugira um valor razoável com justificativa curta**
 e siga em frente:
 
-- _"Para esse cenário de varejo com pipelines diários, eu usaria m5.xlarge
+- *"Para esse cenário de varejo com pipelines diários, eu usaria m5.xlarge
   como ponto de partida — equilibra custo e performance. Podemos ajustar
-  depois se precisar."_
+  depois se precisar."*
 
 Ordem de prioridade das perguntas:
 
@@ -340,7 +342,7 @@ export_estimate
 **Regras de sizing por ambiente:**
 
 | Ambiente        | Horas de uso    | Hardware         |
-| --------------- | --------------- | ---------------- |
+|-----------------|-----------------|------------------|
 | Produção        | 100% (730h/mês) | Tamanho definido |
 | Homologação     | ~30% (200h/mês) | Mesmo hardware   |
 | Desenvolvimento | ~50% horas prod | 1 tier abaixo    |
@@ -367,10 +369,10 @@ a conta aberta para o arquiteto conseguir rastrear e conferir.
 #### Tabela de referência de DBU (AWS, pay-as-you-go)
 
 | Tipo de cluster     | DBU/hora por nó | Preço/DBU (sa-east-1) |
-| ------------------- | --------------- | --------------------- |
-| Jobs Compute        | 1.0 DBU         | ~$0.20                |
-| All-Purpose Compute | 1.0 DBU         | ~$0.40                |
-| Jobs Compute Light  | 0.5 DBU         | ~$0.20                |
+|---------------------|-----------------|------------------------|
+| Jobs Compute        | 1.0 DBU         | ~$0.20                 |
+| All-Purpose Compute | 1.0 DBU         | ~$0.40                 |
+| Jobs Compute Light  | 0.5 DBU         | ~$0.20                 |
 
 #### Fórmula
 

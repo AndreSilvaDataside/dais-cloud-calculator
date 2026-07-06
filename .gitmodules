@@ -1,3 +1,0 @@
-[submodule "plugin/mcps/aws-pricing-calculator"]
-	path = plugin/mcps/aws-pricing-calculator
-	url = https://github.com/aws-samples/sample-aws-pricing-calculator-mcp

@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# Dependências npm
+node_modules/
+
+# Variáveis de ambiente
+.env
+
+# Configurações e tarefas locais do Claude Code
+.claude/
+
+# Documento interno da Dataside
+desafio_aceleras.pdf
+
+# Artefatos de build
+dist/

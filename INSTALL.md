@@ -1,4 +1,4 @@
-# Instalação do Plugin cotar_cloud
+# Instalação do comando /cotar_cloud
 
 ## Pré-requisitos
 
@@ -8,89 +8,29 @@
 
 ---
 
-## 1. Clonar o repositório com o submódulo do MCP
+## 1. Clonar o repositório
 
 ```bash
-git clone --recurse-submodules https://github.com/AndreViniNe/dais-cloud-calculator.git
-cd dais-cloud-calculator/
+git clone https://github.com/AndreViniNe/dais-cloud-calculator.git
+cd dais-cloud-calculator
 ```
 
-> Se já clonou sem `--recurse-submodules`, execute dentro da pasta do projeto:
-> ```bash
-> git submodule update --init --recursive
-> ```
+O repositório inclui um `.mcp.json` na raiz que configura o MCP automaticamente. Na primeira abertura no Claude Code, você verá um prompt pedindo aprovação para ativar o MCP — clique em **Allow**.
 
 ---
 
-## 2. Build do MCP server
-
-```bash
-cd plugin/mcps/aws-pricing-calculator
-npm install
-npm run build
-cd ../../..
-```
-
-Após o build, o arquivo `plugin/mcps/aws-pricing-calculator/dist/mcp-server.js` estará disponível.
-
----
-
-## 3. Registrar o MCP no Claude Code. 
-### 3.1 Claude Code CLI. 
-Adicione o MCP ao config do Claude Code. Abra ou crie o arquivo ```~/.claude/mcp.json``` e adicione:
-```
-{
-  "mcpServers": {
-    "aws-pricing-calculator": {
-      "command": "node",
-      "args": ["/caminho/absoluto/para/seu-repo/plugin/mcps/aws-pricing-calculator/dist/mcp-server.js"]
-    }
-  }
-}
-``` 
-Substitua pelo caminho absoluto real da sua máquina. Depois, no terminal, na raiz do seu projeto:
-```bash
-claude
-```
-
-### 3.2 Cowork (Claude Desktop)
-Vá em **Settings → Capabilities → MCP Servers**, adicione um novo servidor com:
-
-- **Command**: node
-- **Args**: ```/caminho/absoluto/para/seu-repo/plugin/mcps/aws-pricing-calculator/dist/mcp-server.js```
-
-Para a skill, copie a pasta ```plugin/skills/cotar_cloud``` para ```~/.claude/skills/```.
-
-
-### 3.3 Extensão VS Code
-No terminal, na raiz do projeto:
-
-```bash
-claude mcp add aws-pricing-calculator node "$(pwd)/plugin/mcps/aws-pricing-calculator/dist/mcp-server.js"
-```
-
-Verifique se foi registrado:
-
-```bash
-claude mcp list
-```
-
-Deve aparecer `aws-pricing-calculator` na lista.
-
----
-
-## 4. Instalar o comando /cotar_cloud
+## 2. Instalar o comando /cotar_cloud
 
 ```bash
 mkdir -p .claude/commands
-cp plugin/skills/cotar_cloud/SKILL.md .claude/commands/cotar_cloud.md
+cp plugin/skills/cotar_cloud/SKILL_v2.md .claude/commands/cotar_cloud.md
 ```
 
-O comando fica disponível no nível do projeto — qualquer pessoa que clonar o repositório e seguir este guia terá acesso a ele.
+O frontmatter do arquivo declara quais tools do MCP são necessárias — o Claude Code as ativa automaticamente quando o comando é invocado.
 
 ---
 
-## 5. Testar a instalação
+## 3. Testar a instalação
 
 Reinicie o Claude Code no VS Code (feche e reabra o painel) e envie:
 
@@ -105,25 +45,39 @@ Se retornar um link `https://calculator.aws/...`, a instalação está correta.
 
 ---
 
+## Instalação manual do MCP (opcional)
+
+Se preferir não usar npx ou precisar inspecionar o código do MCP:
+
+```bash
+git clone https://github.com/aws-samples/sample-aws-pricing-calculator-mcp.git
+cd sample-aws-pricing-calculator-mcp
+npm install
+npm run build
+cd ..
+
+claude mcp add aws-pricing-calculator node "$HOME/sample-aws-pricing-calculator-mcp/dist/mcp-server.js"
+```
+
+Nesse caso, remova ou ignore o `.mcp.json` da raiz do projeto.
+
+---
+
 ## Estrutura de arquivos
 
 ```
 projeto/
+├── .mcp.json                       ← configura o MCP automaticamente
 ├── README.md
 ├── .claude/
 │   └── commands/
-│       └── cotar_cloud.md          ← comando gerado no passo 4
+│       └── cotar_cloud.md          ← comando gerado no passo 2
 └── plugin/
     ├── INSTALL.md                  ← este arquivo
-    ├── mcp.json                    ← referência de configuração do MCP
     └── skills/
-    │   └── cotar_cloud/
-    │       └── SKILL.md            ← fonte do comando
-    └── mcps/
-        └── aws-pricing-calculator/ ← submódulo do MCP da AWS
-            ├── dist/
-            │   └── mcp-server.js   ← gerado após npm run build
-            └── package.json
+        └── cotar_cloud/
+            ├── SKILL_merged_v1.md  ← versão sem arquiteturas Dataside
+            └── SKILL_merged_v2.md  ← versão com arquiteturas Dataside (recomendada)
 ```
 
 ---
