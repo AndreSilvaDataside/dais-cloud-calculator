@@ -93,30 +93,6 @@ Arquiteto → /cotar_cloud + provider + descrição
 
 ---
 
-## Impacto estimado
-
-> Estimativas de mercado — valores reais devem ser validados com o time.
-
-### Redução de custo operacional
-
-| | Manual | Com skill |
-|---|---|---|
-| Tempo por estimativa | 3h | 20 min |
-| Estimativas/mês (por SA) | 6 | 6 |
-| Horas gastas/mês | 18h | 2h |
-| Custo interno (R$ 200/h) | R$ 3.600 | R$ 400 |
-
-**Redução: ~R$ 3.200/mês por SA** em horas recuperadas.
-
-### Receita potencial
-
-| Horas recuperadas/mês | Taxa faturável | Receita potencial/mês | Receita potencial/ano |
-|---|---|---|---|
-| 16h por SA | R$ 350/h | R$ 5.600 por SA | R$ 67.200 por SA |
-| Com 3 SAs | — | R$ 16.800 | **~R$ 200.000** |
-
----
-
 ## Equipe
 
 - **Samuel** — núcleo de preço, integração das tools, documentação
@@ -143,16 +119,16 @@ Arquiteto → /cotar_cloud + provider + descrição
 
 ### Fase original — Desafio Aceleras (Grupo 2: Sarah + André)
 
-| Data          | Esperado                                                             | Cumprido                                                                                                                |
-| ------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| 22/06         | Reunião de alinhamento e formulação de perguntas para as entrevistas | Reunião feita                                                                                                           |
-| 23/06         | Entrevista com Nelson (SA — Eficiência Operacional)                  | Feito — entendimento do fluxo atual de estimativa e calculadoras                                                        |
-| 24/06         | Entrevista com Oscar (Head de Dados e IA)                            | Feito — entendimento do sistema de propostas, critérios de aceitação do parceiro e requisito do link oficial            |
-| 25/06         | Decisão de escopo e abordagem técnica                                | Feito — AWS + Databricks via skill Claude Code + MCP; descartadas abordagens Next.js e browser agent para o MVP         |
-| 26/06 – 29/06 | Desenvolvimento do primeiro protótipo (skill + MCP)                  | Feito — skill `/cotar_cloud` funcional: estimate AWS com 3 ambientes, estimativa DBU Databricks, link oficial gerado    |
-| 29/06         | Reunião com Cauã (SA) para apresentação do primeiro protótipo        | Feito — feedback: modo conversacional necessário, ideia de browser agent para Azure                                     |
-| 01/07 – 03/07 | Aprimoramento do protótipo com base no feedback                      | Feito — modo conversacional, sugestão de arquitetura pelo Claude, arquiteturas padrão Dataside AWS cadastradas          |
-| 03/07         | **DATA FINAL DE ENTREGA — Aceleras**                                 | ✅                                                                                                                      |
+| Data          | Esperado                                                             | Cumprido                                                                                                             |
+| ------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| 22/06         | Reunião de alinhamento e formulação de perguntas para as entrevistas | Reunião feita                                                                                                        |
+| 23/06         | Entrevista com Nelson (SA — Eficiência Operacional)                  | Feito — entendimento do fluxo atual de estimativa e calculadoras                                                     |
+| 24/06         | Entrevista com Oscar (Head de Dados e IA)                            | Feito — entendimento do sistema de propostas, critérios de aceitação do parceiro e requisito do link oficial         |
+| 25/06         | Decisão de escopo e abordagem técnica                                | Feito — AWS + Databricks via skill Claude Code + MCP; descartadas abordagens Next.js e browser agent para o MVP      |
+| 26/06 – 29/06 | Desenvolvimento do primeiro protótipo (skill + MCP)                  | Feito — skill `/cotar_cloud` funcional: estimate AWS com 3 ambientes, estimativa DBU Databricks, link oficial gerado |
+| 29/06         | Reunião com Cauã (SA) para apresentação do primeiro protótipo        | Feito — feedback: modo conversacional necessário, ideia de browser agent para Azure                                  |
+| 01/07 – 03/07 | Aprimoramento do protótipo com base no feedback                      | Feito — modo conversacional, sugestão de arquitetura pelo Claude, arquiteturas padrão Dataside AWS cadastradas       |
+| 03/07         | **DATA FINAL DE ENTREGA — Aceleras**                                 | ✅                                                                                                                   |
 
 ### Fase atual — Produto real · Cronograma 1 (29/07 – 28/08)
 
@@ -160,35 +136,35 @@ Três blocos de trabalho rodando em paralelo: enquanto Samuel fecha o núcleo de
 
 #### Fase 1 — Núcleo de preço · 29/07 – 01/08
 
-| Membro | Tarefa | Cumprido |
-|--------|--------|:--------:|
-| **Samuel** | `retail_client.py` + `meters.py` (VM, Storage, SQL) + `resolve_price`, com testes pytest | |
-| **André** | Esqueleto do servidor MCP: `server.py` (FastMCP) registrando as 6 tools como *stubs*; validar no MCP Inspector | |
-| **Natália** | Biblioteca de padrões: 3 arquiteturas de referência em YAML (three-tier, AKS, lakehouse) + rascunho do `SKILL.md` | |
+| Membro      | Tarefa                                                                                                            | Cumprido |
+| ----------- | ----------------------------------------------------------------------------------------------------------------- | :------: |
+| **Samuel**  | `retail_client.py` + `meters.py` (VM, Storage, SQL) + `resolve_price`, com testes pytest                          |          |
+| **André**   | Esqueleto do servidor MCP: `server.py` (FastMCP) registrando as 6 tools como _stubs_; validar no MCP Inspector    |          |
+| **Natália** | Biblioteca de padrões: 3 arquiteturas de referência em YAML (three-tier, AKS, lakehouse) + rascunho do `SKILL.md` |          |
 
 #### Fase 2 — MCP mínimo (fatia vertical) · 04/08 – 08/08
 
-| Membro | Tarefa | Cumprido |
-|--------|--------|:--------:|
-| **Samuel** | Ligar `resolve_price` às tools de preço (`search_azure_services`, `get_service_config_schema`, `resolve_price`, `add_line_item`) | |
-| **André** | Implementar `export_estimate` dirigindo a UI da calculadora via Playwright: mapear seletores, capturar o link | |
-| **Natália** | Testar a fatia vertical no Claude Code (pedido cru → link + custo) e registrar bugs e lacunas de configuração | |
+| Membro      | Tarefa                                                                                                                           | Cumprido |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------- | :------: |
+| **Samuel**  | Ligar `resolve_price` às tools de preço (`search_azure_services`, `get_service_config_schema`, `resolve_price`, `add_line_item`) |          |
+| **André**   | Implementar `export_estimate` dirigindo a UI da calculadora via Playwright: mapear seletores, capturar o link                    |          |
+| **Natália** | Testar a fatia vertical no Claude Code (pedido cru → link + custo) e registrar bugs e lacunas de configuração                    |          |
 
 #### Fase 3 — Skill + interpretação · 10/08 – 21/08
 
-| Membro | Tarefa | Cumprido |
-|--------|--------|:--------:|
-| **Natália** | Finalizar `SKILL.md` (workflow completo) + `interpretation-guide.md` + `validation-rules.md` | |
-| **Samuel** | Afinar os resolvers para garantir que todos os serviços dos 3 padrões resolvem preço corretamente | |
-| **André** | Robustez do export: retry, fallback e detecção de sessão expirada | |
+| Membro      | Tarefa                                                                                            | Cumprido |
+| ----------- | ------------------------------------------------------------------------------------------------- | :------: |
+| **Natália** | Finalizar `SKILL.md` (workflow completo) + `interpretation-guide.md` + `validation-rules.md`      |          |
+| **Samuel**  | Afinar os resolvers para garantir que todos os serviços dos 3 padrões resolvem preço corretamente |          |
+| **André**   | Robustez do export: retry, fallback e detecção de sessão expirada                                 |          |
 
 #### Fase 4 — Integração e entrega · 24/08 – 28/08
 
-| Membro | Tarefa | Cumprido |
-|--------|--------|:--------:|
-| **Todos** | Teste ponta a ponta: arquiteto descreve uma arquitetura padrão → recebe link + custo; correção de bugs | |
-| **Samuel** | Finalizar `README.md`, `PROGRESS.md` e o `.mcp.json` de instalação | |
-| **André + Natália** | Preparar a demo da entrega: roteiro + caso de exemplo completo | |
+| Membro              | Tarefa                                                                                                 | Cumprido |
+| ------------------- | ------------------------------------------------------------------------------------------------------ | :------: |
+| **Todos**           | Teste ponta a ponta: arquiteto descreve uma arquitetura padrão → recebe link + custo; correção de bugs |          |
+| **Samuel**          | Finalizar `README.md`, `PROGRESS.md` e o `.mcp.json` de instalação                                     |          |
+| **André + Natália** | Preparar a demo da entrega: roteiro + caso de exemplo completo                                         |          |
 
 ---
 
@@ -198,27 +174,27 @@ Duas frentes em paralelo: Natália e Cauã redesenham a biblioteca de padrões; 
 
 #### Bloco 1 — Descoberta e planejamento · 07/09 – 11/09
 
-| Membro | Tarefa | Cumprido |
-|--------|--------|:--------:|
-| **Natália** | Revisar os 3 padrões atuais e levantar o que muda no redesenho | |
-| **Cauã** | Levantar referências de arquitetura para orientar as novas versões dos 3 padrões | |
-| **Samuel** | Rodar o AzurePricingMCP localmente e mapear suas tools/capacidades | |
-| **Arthur** | Comparar tools do AzurePricingMCP com as do MCP próprio e listar sobreposições/lacunas | |
-| **André** | Levantar os padrões de entrega do projeto que o AzurePricingMCP precisa seguir para ser incorporado | |
+| Membro      | Tarefa                                                                                              | Cumprido |
+| ----------- | --------------------------------------------------------------------------------------------------- | :------: |
+| **Natália** | Revisar os 3 padrões atuais e levantar o que muda no redesenho                                      |          |
+| **Cauã**    | Levantar referências de arquitetura para orientar as novas versões dos 3 padrões                    |          |
+| **Samuel**  | Rodar o AzurePricingMCP localmente e mapear suas tools/capacidades                                  |          |
+| **Arthur**  | Comparar tools do AzurePricingMCP com as do MCP próprio e listar sobreposições/lacunas              |          |
+| **André**   | Levantar os padrões de entrega do projeto que o AzurePricingMCP precisa seguir para ser incorporado |          |
 
 #### Bloco 2 — Execução · 14/09 – 16/09
 
-| Membro | Tarefa | Cumprido |
-|--------|--------|:--------:|
-| **Natália** | Redesenhar os 3 padrões (novas versões dos YAMLs de arquitetura) | |
-| **Cauã** | Validar os padrões redesenhados contra os resolvers existentes | |
-| **Samuel** | Adequar o código do AzurePricingMCP à estrutura/testes do projeto | |
-| **Arthur + André** | Primeira tentativa de integração entre o AzurePricingMCP e o MCP Playwright; checar consistência de preços | |
+| Membro             | Tarefa                                                                                                     | Cumprido |
+| ------------------ | ---------------------------------------------------------------------------------------------------------- | :------: |
+| **Natália**        | Redesenhar os 3 padrões (novas versões dos YAMLs de arquitetura)                                           |          |
+| **Cauã**           | Validar os padrões redesenhados contra os resolvers existentes                                             |          |
+| **Samuel**         | Adequar o código do AzurePricingMCP à estrutura/testes do projeto                                          |          |
+| **Arthur + André** | Primeira tentativa de integração entre o AzurePricingMCP e o MCP Playwright; checar consistência de preços |          |
 
 #### Bloco 3 — Fechamento e entrega · 17/09 – 18/09
 
-| Membro | Tarefa | Cumprido |
-|--------|--------|:--------:|
-| **Natália + Cauã** | Testar arquiteturas redesenhadas ponta a ponta e atualizar documentação da Skill/padrões | |
-| **Samuel + Arthur + André** | Fechar a integração do AzurePricingMCP, corrigir bugs e preparar a demo | |
-| **Todos** | Teste ponta a ponta da entrega, revisão final | |
+| Membro                      | Tarefa                                                                                   | Cumprido |
+| --------------------------- | ---------------------------------------------------------------------------------------- | :------: |
+| **Natália + Cauã**          | Testar arquiteturas redesenhadas ponta a ponta e atualizar documentação da Skill/padrões |          |
+| **Samuel + Arthur + André** | Fechar a integração do AzurePricingMCP, corrigir bugs e preparar a demo                  |          |
+| **Todos**                   | Teste ponta a ponta da entrega, revisão final                                            |          |
