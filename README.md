@@ -1,10 +1,9 @@
 # Cloud Pricing Calculator
 
-Atualizado: 03/07/2026
+Skill para Claude Code que gera estimativas de custo em nuvem a partir de uma conversa guiada com o arquiteto.
 
-Skill para Claude Code que gera estimativas de custo em nuvem a partir de uma conversa guiada com o arquiteto, retornando um link oficial do AWS Pricing Calculator pronto para enviar ao parceiro AWS.
-
-**Grupo 2:** Sarah + André
+- **AWS** → link oficial `calculator.aws` pronto para enviar ao parceiro
+- **Azure** → estimativa detalhada com preços públicos via Retail Prices API
 
 ---
 
@@ -22,83 +21,127 @@ Arquitetos de soluções montam estimativas de custo manualmente nas calculadora
 
 ### Solução
 
-Skill `/cotar_cloud` para Claude Code, integrada ao MCP oficial da AWS (`aws-samples/sample-aws-pricing-calculator-mcp`). O arquiteto descreve a arquitetura — ou simplesmente descreve o problema do cliente — e recebe:
+Skill `/cotar_cloud` para Claude Code, integrada a dois MCPs:
 
-- Conversa guiada que sugere a arquitetura (com base nos padrões Dataside cadastrados) e coleta o dimensionamento progressivamente, uma ou duas perguntas por vez
-- Link compartilhável oficial do `calculator.aws` com os serviços organizados em grupos de ambiente (Produção, Homologação, Desenvolvimento)
-- Estimativa de custo DBU do Databricks calculada separadamente, com instrução para confirmar no site oficial
+- **AWS** — `aws-samples/sample-aws-pricing-calculator-mcp`: cria o estimate e exporta um link oficial `calculator.aws`
+- **Azure** — `msftnadavbh/AzurePricingMCP`: consulta a Azure Retail Prices API e estima custo por serviço, incluindo Databricks on Azure via DBU
 
-### Decisões de escopo
+O arquiteto descreve o problema do cliente ou lista os serviços desejados. A skill detecta o provider, sugere arquitetura (com base nos padrões Dataside), coleta o dimensionamento progressivamente e gera a estimativa.
 
-**Provider:** AWS + Databricks on AWS — foco do MVP, baseado nas entrevistas com os SAs da Dataside (maior volume de uso e melhor suporte programático via MCP).
-
-**O que está dentro do escopo:**
+### O que está dentro do escopo
 
 - Serviços AWS cobertos pela calculadora oficial
-- Databricks Job Cluster e All-Purpose Cluster (custo EC2 no estimate AWS + estimativa de DBU separada)
+- Databricks on AWS: EC2 no estimate + DBU estimado separadamente
+- Serviços Azure cobertos pela Retail Prices API (VMs, Storage, SQL, AKS, etc.)
+- Databricks on Azure: compute + DBU via MCP (`databricks_dbu_pricing`, `databricks_cost_estimate`)
+- Microsoft Fabric: estimativa por F-SKU (Capacity reservation) ou por workload (CU/hora) via `azure_price_search` — cobertura completa da Retail Prices API
 - 3 ambientes: Produção, Homologação e Desenvolvimento com sizing proporcional automático
-- Modo conversacional: Claude sugere arquitetura, coleta dimensionamento progressivamente e confirma antes de gerar
-- Arquiteturas padrão Dataside cadastradas na skill (4 arquiteturas AWS)
-- Preços sempre on-demand (sem descontos)
+- Modo conversacional: Claude sugere arquitetura, coleta dimensionamento e confirma antes de gerar
+- Arquiteturas padrão Dataside cadastradas na skill (AWS: 4 arquiteturas | Azure: a preencher)
+- Preços sempre on-demand / retail público (sem descontos)
 
-**O que está fora do escopo no MVP:**
+### O que está fora do escopo
 
-- Azure e Google Cloud — não há API pública que gere links oficiais programaticamente; abordagem V2 via browser agent
-- Microsoft Fabric — modelo de cobrança por capacidade (diferente de serviço a serviço), sem suporte na calculadora via MCP
-- Snowflake on AWS — custo Snowflake está fora da AWS Pricing Calculator
-- Serviços fora da calculadora oficial (ex: Vector Search) — sinalizados ao arquiteto com link para a pricing page
+- Link compartilhável da Azure Pricing Calculator — não há API pública para geração programática; o arquiteto recebe a estimativa e preenche a calculadora manualmente se necessário
+- Snowflake — custo fora das calculadoras AWS e Azure; valores disponíveis via PDF da calculadora oficial (sem API)
+- Google Cloud
+- Preços negociados ou com desconto (EA, CSP)
 
 ### Arquitetura da solução
 
 ```
-Arquiteto → /cotar_cloud + descrição do cliente
+Arquiteto → /cotar_cloud + provider + descrição
                   ↓
-            Claude Code (SKILL.md)
-            [modo conversa: sugere arquitetura → dimensiona → confirma]
+            Claude Code (SKILL_unified.md)
+            [detecta provider → sugere arquitetura → dimensiona → confirma]
                   ↓
-         MCP: aws-pricing-calculator
-         (aws-samples/sample-aws-pricing-calculator-mcp)
-                  ↓
-    create_estimate → add_service (prod/homolog/dev) → export_estimate
-                  ↓
-        Link oficial calculator.aws
-        + Estimativa DBU Databricks (calculada na skill)
+        ┌─────────────────────────────────────────┐
+        │ AWS                    │ Azure           │
+        │ MCP: aws-pricing-      │ MCP: azure-     │
+        │ calculator             │ pricing-mcp     │
+        │ create_estimate →      │ azure_discover_ │
+        │ add_service →          │ skus →          │
+        │ export_estimate        │ azure_cost_     │
+        │ ↓                      │ estimate        │
+        │ Link calculator.aws    │ Estimativa USD  │
+        └─────────────────────────────────────────┘
 ```
 
 ---
 
 ## Como garantimos os valores oficiais
 
-**AWS:** o MCP `aws-samples/sample-aws-pricing-calculator-mcp` é o repositório oficial da AWS e usa a mesma API interna do `calculator.aws`. O estimate criado pelo MCP é idêntico ao que seria gerado manualmente — o link retornado por `export_estimate` é um link real do `calculator.aws`, o próprio artefato exigido pelo parceiro. Não há recálculo intermediário: os valores vêm diretamente da API oficial.
+**AWS:** o MCP `aws-samples/sample-aws-pricing-calculator-mcp` usa a mesma API interna do `calculator.aws`. O link retornado por `export_estimate` é um link real do `calculator.aws` — o próprio artefato exigido pelo parceiro.
 
-**Databricks:** não existe API que gere links programáticos da calculadora Databricks. A solução adotada foi calcular o custo de DBU com a fórmula oficial (`DBU/hora × nós × horas/mês × preço/DBU`), usando a tabela de preços pay-as-you-go de sa-east-1 como referência. A conta é apresentada aberta para o arquiteto rastrear e conferir. Ao final, a skill instrui o arquiteto a validar o valor em `databricks.com/product/pricing` e anexar o print à proposta.
+**Azure:** a Azure Retail Prices API (`prices.azure.com`) é a fonte pública oficial de preços da Microsoft, sem autenticação. Os valores retornados são idênticos aos exibidos em `calculator.microsoft.com`. Não há link gerado — a estimativa é entregue como breakdown de custo por serviço.
+
+**Databricks on AWS:** calculado com a fórmula oficial (`DBU/hora × nós × horas/mês × preço/DBU`) usando a tabela de preços pay-as-you-go de `sa-east-1`. Conta apresentada aberta para conferência.
+
+**Databricks on Azure:** estimado via tools do MCP (`databricks_dbu_pricing`, `databricks_cost_estimate`) que consultam a Retail Prices API diretamente.
 
 ---
 
-## O que faríamos diferente/Features futuras
+## O que faríamos diferente / Features futuras
 
-**Cobrir Azure:** a Azure Retail Prices API (`prices.azure.com`) é pública e sem autenticação — dá para buscar preços de qualquer serviço. O problema é que não há API equivalente para gerar um link compartilhável da Azure Pricing Calculator. A solução viável para V2 é um browser agent (Playwright ou Claude in Chrome) que preenche a calculadora e exporta o link, replicando o que o MCP faz para a AWS.
+**Link da Azure Pricing Calculator:** a geração programática exige autenticação de sessão de navegador (cookie + CSRF). Abordagem V2 via browser agent (Playwright ou Claude in Chrome).
 
-**Cobrir Databricks on Azure:** diferente do Databricks on AWS (duas calculadoras separadas), o Databricks on Azure tem calculadora própria da Microsoft — o mesmo problema de geração programática de link se aplica.
+**Arquiteturas Dataside Azure:** os padrões Azure (Databricks Lakehouse, Fabric, AI Agent) serão cadastrados na skill à medida que forem documentados.
 
-**Arquiteturas de outros providers:** as 4 arquiteturas padrão Dataside cadastradas na skill são todas AWS. Com mais tempo, adicionaríamos os padrões Azure (Fabric + Databricks), GCP e os padrões híbridos.
+**Google Cloud:** sem MCP disponível no momento; requer desenvolvimento de MCP próprio ou integração com a Cloud Billing API.
 
-**Interface web standalone:** a skill resolve o problema para quem usa Claude Code. Para SAs que não usam (ou clientes que queiram autoatendimento), uma interface web com os mesmos fluxos conversacionais seria o próximo passo natural.
+**Interface web standalone:** para SAs que não usam Claude Code ou para autoatendimento de clientes.
+
+---
+
+## Impacto estimado
+
+> Estimativas de mercado — valores reais devem ser validados com o time.
+
+### Redução de custo operacional
+
+| | Manual | Com skill |
+|---|---|---|
+| Tempo por estimativa | 3h | 20 min |
+| Estimativas/mês (por SA) | 6 | 6 |
+| Horas gastas/mês | 18h | 2h |
+| Custo interno (R$ 200/h) | R$ 3.600 | R$ 400 |
+
+**Redução: ~R$ 3.200/mês por SA** em horas recuperadas.
+
+### Receita potencial
+
+| Horas recuperadas/mês | Taxa faturável | Receita potencial/mês | Receita potencial/ano |
+|---|---|---|---|
+| 16h por SA | R$ 350/h | R$ 5.600 por SA | R$ 67.200 por SA |
+| Com 3 SAs | — | R$ 16.800 | **~R$ 200.000** |
+
+---
+
+## Equipe
+
+- **Samuel** — núcleo de preço, integração das tools, documentação
+- **André** — servidor MCP, automação do navegador (export)
+- **Natália** — Skill, biblioteca de padrões, testes de ponta a ponta
+- **Arthur** — integração do MCP de comunidade (AzurePricingMCP) com o MCP próprio
+- **Cauã** — redesenho da biblioteca de padrões de arquitetura
 
 ---
 
 ## Referências
 
 - [MCP AWS Pricing Calculator](https://github.com/aws-samples/sample-aws-pricing-calculator-mcp)
+- [MCP Azure Pricing](https://github.com/msftnadavbh/AzurePricingMCP)
 - [Calculadora oficial AWS](https://calculator.aws)
+- [Calculadora oficial Azure](https://calculator.microsoft.com)
+- [Azure Retail Prices API](https://prices.azure.com/api/retail/prices)
 - [Calculadora Databricks](https://www.databricks.com/product/pricing)
-- [Instalação do plugin](plugin/INSTALL.md)
+- [Instalação](plugin/INSTALL.md)
 
 ---
 
 ## Log de organização
 
-Registro do planejamento e execução ao longo das duas semanas do desafio.
+### Fase original — Desafio Aceleras (Grupo 2: Sarah + André)
 
 | Data          | Esperado                                                             | Cumprido                                                                                                                |
 | ------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
@@ -107,6 +150,75 @@ Registro do planejamento e execução ao longo das duas semanas do desafio.
 | 24/06         | Entrevista com Oscar (Head de Dados e IA)                            | Feito — entendimento do sistema de propostas, critérios de aceitação do parceiro e requisito do link oficial            |
 | 25/06         | Decisão de escopo e abordagem técnica                                | Feito — AWS + Databricks via skill Claude Code + MCP; descartadas abordagens Next.js e browser agent para o MVP         |
 | 26/06 – 29/06 | Desenvolvimento do primeiro protótipo (skill + MCP)                  | Feito — skill `/cotar_cloud` funcional: estimate AWS com 3 ambientes, estimativa DBU Databricks, link oficial gerado    |
-| 29/06         | Reunião com Cauã (SA) para apresentação do primeiro protótipo        | Feito — feedback: modo conversacional necessário (SA não quer preencher formulário), ideia de browser agent para Azure  |
-| 01/07 – 03/07 | Aprimoramento do protótipo com base no feedback                      | Feito — modo conversacional implementado, sugestão de arquitetura pelo Claude, arquiteturas padrão Dataside cadastradas |
-| 03/07         | **DATA FINAL DE ENTREGA**                                            | ✅                                                                                                                      |
+| 29/06         | Reunião com Cauã (SA) para apresentação do primeiro protótipo        | Feito — feedback: modo conversacional necessário, ideia de browser agent para Azure                                     |
+| 01/07 – 03/07 | Aprimoramento do protótipo com base no feedback                      | Feito — modo conversacional, sugestão de arquitetura pelo Claude, arquiteturas padrão Dataside AWS cadastradas          |
+| 03/07         | **DATA FINAL DE ENTREGA — Aceleras**                                 | ✅                                                                                                                      |
+
+### Fase atual — Produto real · Cronograma 1 (29/07 – 28/08)
+
+Três blocos de trabalho rodando em paralelo: enquanto Samuel fecha o núcleo de preço, André adianta o esqueleto do MCP e Natália constrói a biblioteca de padrões e a Skill.
+
+#### Fase 1 — Núcleo de preço · 29/07 – 01/08
+
+| Membro | Tarefa | Cumprido |
+|--------|--------|:--------:|
+| **Samuel** | `retail_client.py` + `meters.py` (VM, Storage, SQL) + `resolve_price`, com testes pytest | |
+| **André** | Esqueleto do servidor MCP: `server.py` (FastMCP) registrando as 6 tools como *stubs*; validar no MCP Inspector | |
+| **Natália** | Biblioteca de padrões: 3 arquiteturas de referência em YAML (three-tier, AKS, lakehouse) + rascunho do `SKILL.md` | |
+
+#### Fase 2 — MCP mínimo (fatia vertical) · 04/08 – 08/08
+
+| Membro | Tarefa | Cumprido |
+|--------|--------|:--------:|
+| **Samuel** | Ligar `resolve_price` às tools de preço (`search_azure_services`, `get_service_config_schema`, `resolve_price`, `add_line_item`) | |
+| **André** | Implementar `export_estimate` dirigindo a UI da calculadora via Playwright: mapear seletores, capturar o link | |
+| **Natália** | Testar a fatia vertical no Claude Code (pedido cru → link + custo) e registrar bugs e lacunas de configuração | |
+
+#### Fase 3 — Skill + interpretação · 10/08 – 21/08
+
+| Membro | Tarefa | Cumprido |
+|--------|--------|:--------:|
+| **Natália** | Finalizar `SKILL.md` (workflow completo) + `interpretation-guide.md` + `validation-rules.md` | |
+| **Samuel** | Afinar os resolvers para garantir que todos os serviços dos 3 padrões resolvem preço corretamente | |
+| **André** | Robustez do export: retry, fallback e detecção de sessão expirada | |
+
+#### Fase 4 — Integração e entrega · 24/08 – 28/08
+
+| Membro | Tarefa | Cumprido |
+|--------|--------|:--------:|
+| **Todos** | Teste ponta a ponta: arquiteto descreve uma arquitetura padrão → recebe link + custo; correção de bugs | |
+| **Samuel** | Finalizar `README.md`, `PROGRESS.md` e o `.mcp.json` de instalação | |
+| **André + Natália** | Preparar a demo da entrega: roteiro + caso de exemplo completo | |
+
+---
+
+### Cronograma 2 — Segunda entrega (04/09 – 18/09)
+
+Duas frentes em paralelo: Natália e Cauã redesenham a biblioteca de padrões; Samuel, Arthur e André integram o [AzurePricingMCP](https://github.com/msftnadavbh/AzurePricingMCP) ao projeto.
+
+#### Bloco 1 — Descoberta e planejamento · 07/09 – 11/09
+
+| Membro | Tarefa | Cumprido |
+|--------|--------|:--------:|
+| **Natália** | Revisar os 3 padrões atuais e levantar o que muda no redesenho | |
+| **Cauã** | Levantar referências de arquitetura para orientar as novas versões dos 3 padrões | |
+| **Samuel** | Rodar o AzurePricingMCP localmente e mapear suas tools/capacidades | |
+| **Arthur** | Comparar tools do AzurePricingMCP com as do MCP próprio e listar sobreposições/lacunas | |
+| **André** | Levantar os padrões de entrega do projeto que o AzurePricingMCP precisa seguir para ser incorporado | |
+
+#### Bloco 2 — Execução · 14/09 – 16/09
+
+| Membro | Tarefa | Cumprido |
+|--------|--------|:--------:|
+| **Natália** | Redesenhar os 3 padrões (novas versões dos YAMLs de arquitetura) | |
+| **Cauã** | Validar os padrões redesenhados contra os resolvers existentes | |
+| **Samuel** | Adequar o código do AzurePricingMCP à estrutura/testes do projeto | |
+| **Arthur + André** | Primeira tentativa de integração entre o AzurePricingMCP e o MCP Playwright; checar consistência de preços | |
+
+#### Bloco 3 — Fechamento e entrega · 17/09 – 18/09
+
+| Membro | Tarefa | Cumprido |
+|--------|--------|:--------:|
+| **Natália + Cauã** | Testar arquiteturas redesenhadas ponta a ponta e atualizar documentação da Skill/padrões | |
+| **Samuel + Arthur + André** | Fechar a integração do AzurePricingMCP, corrigir bugs e preparar a demo | |
+| **Todos** | Teste ponta a ponta da entrega, revisão final | |
