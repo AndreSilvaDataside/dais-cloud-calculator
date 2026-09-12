@@ -1,0 +1,425 @@
+#!/usr/bin/env python3
+"""
+Confere os precos afirmados na SKILL contra a Azure Retail Prices API.
+
+Toda tabela de preco da Skill e uma afirmacao sobre a API. Esta ferramenta
+reconfere cada uma. Serve para rodar antes de apresentacao e antes de aprovar
+PR que mexa em numero.
+
+Sem dependencia externa: usa apenas a stdlib e o sonda_catalogo.py ao lado.
+
+Uso:
+    python valida_precos.py                          # busca ao vivo na API
+    python valida_precos.py --snapshot brazilsouth-2026-09-11.json
+    python valida_precos.py --snapshot arquivo.json --verbose
+
+Saida: uma linha por conferencia, e o total de falhas no fim.
+Codigo de saida 0 se tudo passou, 1 se houve falha.
+
+FALHA NAO E NECESSARIAMENTE BUG.
+    Se a Azure mudou um preco, a conferencia falha e esta certa em falhar: o
+    aviso e de que uma tabela da Skill envelheceu. Leia a falha, confirme na
+    API, e corrija a Skill. Nao ajuste o numero esperado aqui sem corrigir
+    a Skill tambem, senao a ferramenta para de servir para nada.
+
+    Por isso esta ferramenta nao serve como teste de CI que tem que passar
+    sempre. Ela serve como conferencia deliberada.
+"""
+
+from __future__ import annotations
+
+import argparse
+import collections
+import json
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from sonda_catalogo import buscar, montar_filtro, normalizar  # noqa: E402
+
+REGIAO = "brazilsouth"
+
+SKILL = Path(__file__).resolve().parents[1] / "plugin" / "skills" / "cotar_cloud" / "SKILL_unified.md"
+
+# Servicos que a Skill cota. Define o que buscar quando nao ha snapshot.
+SERVICOS = [
+    "Microsoft Fabric",
+    "Azure Databricks",
+    "Storage",
+    "Key Vault",
+    "Bandwidth",
+    "Virtual Machines",
+]
+
+# ---------------------------------------------------------------------------
+# Precos de meter afirmados na Skill: (productName, meterName, preco esperado)
+# Primeira faixa (tierMinimumUnits = 0) salvo onde indicado.
+# ---------------------------------------------------------------------------
+PRECOS = [
+    # --- Microsoft Fabric: capacidade ---
+    ("Fabric Capacity", "Data Warehouse Capacity Usage CU", 0.28),
+    ("Fabric Capacity", "Power BI Capacity Usage CU", 0.28),
+    ("Fabric Capacity", "Spark Memory Optimized Capacity Usage CU", 0.28),
+    ("Fabric Capacity", "Eventhouse Capacity Usage CU", 0.28),
+    ("Fabric Capacity", "Capacity Overage Capacity Usage CU", 0.84),
+    # --- Microsoft Fabric: armazenamento OneLake ---
+    ("OneLake", "OneLake Storage Hot Data Stored", 0.0407),
+    ("OneLake", "OneLake Storage Cool Data Stored", 0.0221),
+    ("OneLake", "OneLake Storage Cold Data Stored", 0.0083),
+    ("OneLake", "Storage Mirroring Data Stored", 0.0407),
+    # --- Databricks classico (DBU + VM) ---
+    ("Azure Databricks", "Premium All-purpose Compute DBU", 0.55),
+    ("Azure Databricks", "Premium All-Purpose Photon DBU", 0.55),
+    ("Azure Databricks", "Standard All-purpose Compute DBU", 0.40),
+    ("Azure Databricks", "Standard All-Purpose Photon DBU", 0.40),
+    ("Azure Databricks", "Premium Jobs Compute DBU", 0.30),
+    ("Azure Databricks", "Premium Jobs Compute Photon DBU", 0.30),
+    ("Azure Databricks", "Standard Jobs Compute DBU", 0.15),
+    ("Azure Databricks", "Premium Jobs Light Compute DBU", 0.22),
+    ("Azure Databricks", "Standard Jobs Light Compute DBU", 0.07),
+    ("Azure Databricks", "Premium SQL Analytics DBU", 0.22),
+    ("Azure Databricks", "Premium Core Compute Delta Live Tables DBU", 0.30),
+    ("Azure Databricks", "Premium Pro Compute Delta Live Tables DBU", 0.38),
+    ("Azure Databricks", "Premium Advanced Compute Delta Live Tables DBU", 0.54),
+    ("Azure Databricks", "Premium Enhanced Security and Compliance DBU", 0.10),
+    # --- Databricks serverless (so DBU) ---
+    ("Azure Databricks Regional", "Premium Serverless SQL DBU", 1.09),
+    ("Azure Databricks Regional", "Premium Interactive Serverless Compute DBU", 1.09),
+    ("Azure Databricks Regional", "Premium SQL Compute Pro DBU", 0.85),
+    ("Azure Databricks Regional", "Premium Automated Serverless Compute DBU", 0.59),
+    ("Azure Databricks Regional", "Premium Database Serverless Compute DBU", 0.42),
+    ("Azure Databricks Regional", "Premium Model Training DBU", 1.11),
+    ("Azure Databricks Regional", "Premium Serverless Realtime Inferencing DBU", 0.112),
+    ("Azure Databricks Regional", "Premium Databricks Storage Unit DSU", 0.0407),
+    # --- ADLS Gen2 ---
+    ("Azure Data Lake Storage Gen2 Hierarchical Namespace", "Hot LRS Data Stored", 0.0326),
+    ("Azure Data Lake Storage Gen2 Hierarchical Namespace", "Hot ZRS Data Stored", 0.0407),
+    ("Azure Data Lake Storage Gen2 Hierarchical Namespace", "Hot GRS Data Stored", 0.0652),
+    ("Azure Data Lake Storage Gen2 Hierarchical Namespace", "Cool LRS Data Stored", 0.0177),
+    ("Azure Data Lake Storage Gen2 Hierarchical Namespace", "Cool GRS Data Stored", 0.0354),
+    ("Azure Data Lake Storage Gen2 Hierarchical Namespace", "Archive LRS Data Stored", 0.002),
+    ("Azure Data Lake Storage Gen2 Hierarchical Namespace", "Hot RA-GZRS Data Stored", 0.091688),
+    # --- Key Vault ---
+    ("Key Vault HSM Pool", "Standard B1 Instance", 3.2),
+    # --- Egress ---
+    ("Bandwidth - Routing Preference: Internet", "Standard Data Transfer Out", 0.0),
+    ("Rtn Preference: MGN", "Standard Inter-Region Data Transfer", 0.16),
+]
+
+# Faixas escalonadas: (productName, meterName, tierMinimumUnits, preco)
+FAIXAS = [
+    ("Bandwidth - Routing Preference: Internet", "Standard Data Transfer Out", 100.0, 0.12),
+    ("Rtn Preference: MGN", "Standard Data Transfer Out", 100.0, 0.181),
+    ("Key Vault", "Premium HSM-protected Advanced Key", 0.0, 5.0),
+    ("Key Vault", "Premium HSM-protected Advanced Key", 250.0, 2.5),
+    ("Key Vault", "Premium HSM-protected Advanced Key", 1500.0, 0.9),
+    ("Key Vault", "Premium HSM-protected Advanced Key", 4000.0, 0.4),
+    ("Azure Data Lake Storage Gen2 Hierarchical Namespace", "Hot GRS Data Stored", 51200.0, 0.0626),
+    ("Azure Data Lake Storage Gen2 Hierarchical Namespace", "Hot GRS Data Stored", 512000.0, 0.06),
+]
+
+# Tabela de F SKU da Skill: (CUs, sob demanda/mes, reserva/mes, compromisso anual)
+FSKU = [
+    (2, 408.80, 243.00, 2916.00),
+    (4, 817.60, 486.00, 5832.00),
+    (8, 1635.20, 972.00, 11664.00),
+    (16, 3270.40, 1944.00, 23328.00),
+    (32, 6540.80, 3888.00, 46656.00),
+    (64, 13081.60, 7776.00, 93312.00),
+    (128, 26163.20, 15552.00, 186624.00),
+    (256, 52326.40, 31104.00, 373248.00),
+]
+
+CU_HORA = 0.28        # Fabric Capacity, qualquer Capacity Usage CU
+CU_ANO = 1458.00      # Fabric Capacity Reservation, 1 Year
+CU_3ANOS = 4374.00    # Fabric Capacity Reservation, 3 Years
+HORAS_MES = 730
+
+# Trechos que a Skill precisa conter, e trechos que nao pode mais conter.
+EXIGE = [
+    "Resolução de preço Azure",
+    "Chave de resolução",
+    "Allowlist por serviço",
+    "Gates de validação",
+    "reservationTerm",
+    "Azure Databricks Regional",
+    "Capacity Overage Capacity Usage CU",
+    "Fabric Capacity Reservation",
+    "OneLake Storage Hot Data Stored",
+]
+PROIBE = [
+    # A instrucao que nao funciona: esse skuName nao existe na API.
+    'skuName: "F[N] Capacity"',
+    "F[N] Capacity",
+    # Contradizia o Fabric, onde a reserva e 40,6% mais barata.
+    "Nunca Reserved Instances ou Spot",
+]
+
+
+class Relatorio:
+    def __init__(self, verbose: bool) -> None:
+        self.falhas: list[str] = []
+        self.ok = 0
+        self.verbose = verbose
+
+    def chk(self, rotulo: str, cond: bool, detalhe: str = "") -> None:
+        if cond:
+            self.ok += 1
+            if self.verbose:
+                print(f"  ok     {rotulo}")
+        else:
+            self.falhas.append(rotulo + (f"  ({detalhe})" if detalhe else ""))
+            print(f"  FALHA  {rotulo}" + (f"  → {detalhe}" if detalhe else ""))
+
+    def secao(self, titulo: str) -> None:
+        print(f"\n=== {titulo} ===")
+
+
+def carregar(snapshot: str | None, timeout: int) -> tuple[list[dict], str]:
+    """Devolve (linhas de Consumption, descricao da fonte)."""
+    if snapshot:
+        caminho = Path(snapshot)
+        if not caminho.is_absolute():
+            caminho = Path.cwd() / caminho
+        with open(caminho, encoding="utf-8") as f:
+            linhas = json.load(f)
+        return linhas, f"snapshot {caminho.name} ({len(linhas)} meters)"
+
+    linhas: list[dict] = []
+    for servico in SERVICOS:
+        filtro = montar_filtro(service=servico, region=REGIAO, price_type="Consumption")
+        itens, tem_mais, erro = buscar(filtro, max_paginas=200, timeout=timeout, rotulo=servico)
+        if erro:
+            print(f"  AVISO  falha ao buscar {servico}: {erro}", file=sys.stderr)
+        if tem_mais:
+            print(f"  AVISO  {servico} tem mais paginas que o limite", file=sys.stderr)
+        linhas.extend(itens)
+    return linhas, f"API ao vivo, {REGIAO} ({len(linhas)} meters dos servicos em escopo)"
+
+
+def indexar(linhas: list[dict]) -> dict:
+    idx = collections.defaultdict(list)
+    for r in linhas:
+        idx[(r.get("productName"), r.get("meterName"))].append(r)
+    return idx
+
+
+def preco(idx: dict, pn: str, mn: str, tier: float = 0.0) -> float | None:
+    for r in idx[(pn, mn)]:
+        if r.get("tierMinimumUnits") == tier:
+            return r.get("retailPrice")
+    return None
+
+
+def conferir_precos(rel: Relatorio, idx: dict) -> None:
+    rel.secao("precos de meter afirmados na Skill")
+    for pn, mn, esperado in PRECOS:
+        obtido = preco(idx, pn, mn)
+        rel.chk(f"{pn} / {mn} = {esperado}", obtido == esperado,
+                "nao encontrado" if obtido is None else f"API devolve {obtido}")
+
+    rel.secao("faixas escalonadas (tierMinimumUnits)")
+    for pn, mn, tier, esperado in FAIXAS:
+        obtido = preco(idx, pn, mn, tier)
+        rel.chk(f"{mn} @ tier {tier:.0f} = {esperado}", obtido == esperado,
+                "nao encontrado" if obtido is None else f"API devolve {obtido}")
+
+
+def conferir_fabric(rel: Relatorio, idx: dict, timeout: int) -> None:
+    rel.secao("Fabric: nao existe meter de F SKU (armadilha 5)")
+    cu = [r for k, v in idx.items() for r in v
+          if k[0] == "Fabric Capacity" and (k[1] or "").endswith("Capacity Usage CU")]
+    taxas = {r["retailPrice"] for r in cu if "Overage" not in (r.get("meterName") or "")}
+    rel.chk(f"todo Capacity Usage CU custa {CU_HORA} ({len(cu)} meters)", taxas == {CU_HORA},
+            f"taxas distintas: {sorted(taxas)}")
+
+    rel.secao("Fabric: reserva na API (priceType = Reservation)")
+    filtro = montar_filtro(service="Microsoft Fabric", region=REGIAO, price_type="Reservation")
+    itens, _, erro = buscar(filtro, max_paginas=5, timeout=timeout)
+    if erro:
+        rel.chk("buscar reserva do Fabric", False, erro)
+        return
+    por_termo = {i.get("reservationTerm"): i for i in itens}
+    rel.chk(f"1 Year = {CU_ANO}", (por_termo.get("1 Year") or {}).get("retailPrice") == CU_ANO)
+    rel.chk(f"3 Years = {CU_3ANOS}", (por_termo.get("3 Years") or {}).get("retailPrice") == CU_3ANOS)
+    rel.chk("productName = 'Fabric Capacity Reservation'",
+            all(i.get("productName") == "Fabric Capacity Reservation" for i in itens))
+    rel.chk("meterName = 'Fabric Capacity CU'",
+            all(i.get("meterName") == "Fabric Capacity CU" for i in itens))
+    # Armadilha 4: a linha de reserva diz "1 Hour" e nao e por hora.
+    rel.chk("unitOfMeasure diz '1 Hour' na linha de reserva (armadilha 4 continua valida)",
+            all(i.get("unitOfMeasure") == "1 Hour" for i in itens),
+            "a API mudou: reveja o gate 4 da Skill")
+
+    rel.secao("Fabric: aritmetica da tabela de F SKU")
+    for cus, od, rsv, anual in FSKU:
+        calc_od = round(cus * CU_HORA * HORAS_MES, 2)
+        calc_rsv = round(cus * CU_ANO / 12, 2)
+        calc_anual = round(cus * CU_ANO, 2)
+        rel.chk(f"F{cus}: {od} sob demanda / {rsv} reserva / {anual} anual",
+                (calc_od, calc_rsv, calc_anual) == (od, rsv, anual),
+                f"calculado {calc_od} / {calc_rsv} / {calc_anual}")
+    rel.chk("reserva de 3 anos tem a mesma taxa/CU-mes que a de 1 ano",
+            round(CU_3ANOS / 36, 2) == round(CU_ANO / 12, 2))
+    desconto = round((1 - (CU_ANO / 12) / (CU_HORA * HORAS_MES)) * 100, 1)
+    rel.chk("desconto da reserva = 40,6% (valor afirmado na Skill)", desconto == 40.6,
+            f"calculado {desconto}%")
+
+
+def conferir_armadilhas(rel: Relatorio, idx: dict, linhas: list[dict], completo: bool) -> None:
+    rel.secao("armadilha 1: nome de servico enganoso")
+    produtos = {r.get("productName") for r in linhas}
+    for a, b in [("Azure Data Lake Storage Gen2 Flat Namespace",
+                  "Azure Data Lake Storage Gen2 Hierarchical Namespace")]:
+        rel.chk(f"'{a}' e '{b}' coexistem", a in produtos and b in produtos)
+
+    rel.secao("armadilha 2: meterName nao e chave")
+    por_meter = collections.defaultdict(set)
+    for r in linhas:
+        por_meter[(r.get("serviceName"), r.get("productName"), r.get("meterName"))].add(r.get("retailPrice"))
+    divergentes = [k for k, v in por_meter.items() if len(v) > 1]
+    afetadas = [r for r in linhas
+                if len(por_meter[(r.get("serviceName"), r.get("productName"), r.get("meterName"))]) > 1]
+    rel.chk(f"existe meterName com preco divergente ({len(divergentes)} combinacoes, "
+            f"{len(afetadas)} linhas)", bool(divergentes))
+    kv = sorted((r.get("tierMinimumUnits"), r.get("retailPrice"))
+                for r in idx[("Key Vault", "Premium HSM-protected Advanced Key")])
+    rel.chk("Key Vault / Premium HSM-protected Advanced Key tem 4 faixas de 5,00 a 0,40",
+            kv == [(0.0, 5.0), (250.0, 2.5), (1500.0, 0.9), (4000.0, 0.4)], str(kv))
+
+    rel.secao("armadilha 3: preco 0,0 nem sempre e faixa gratuita")
+    zeros = [r for r in linhas if r.get("retailPrice") == 0.0]
+    com_irmao = [r for r in zeros
+                 if any(o.get("tierMinimumUnits", 0) > 0
+                        for o in idx[(r.get("productName"), r.get("meterName"))])]
+    sem_irmao = len(zeros) - len(com_irmao)
+    pct = round(sem_irmao / len(zeros) * 100) if zeros else 0
+    print(f"         {len(zeros)} zeros: {len(com_irmao)} com irmao de tier maior "
+          f"(faixa gratuita), {sem_irmao} sem ({pct}%)")
+    rel.chk("a maioria dos zeros NAO e faixa gratuita", pct > 50, f"{pct}%")
+    for pn, mn in [("Azure Databricks", "Premium - Free Trial All-purpose Compute DBU"),
+                   ("Azure Databricks Regional", "POC Non-Billable Serverless SQL DBU")]:
+        rel.chk(f"meter proibido existe e custa 0,0: {mn}", preco(idx, pn, mn) == 0.0)
+
+    rel.secao("armadilha 7: grafia inconsistente e colisao de preco")
+    rel.chk("'All-purpose' e 'All-Purpose' coexistem no mesmo productName",
+            preco(idx, "Azure Databricks", "Premium All-purpose Compute DBU") is not None
+            and preco(idx, "Azure Databricks", "Premium All-Purpose Photon DBU") is not None)
+    rel.chk("normalizar() iguala as duas grafias",
+            normalizar("Premium All-purpose Compute") == normalizar("Premium All-Purpose Compute"))
+    rel.chk("'OneLake' e 'Onelake' coexistem no productName OneLake",
+            preco(idx, "OneLake", "OneLake BCDR Storage Hot Data Stored") is not None
+            and preco(idx, "OneLake", "Onelake BCDR Storage Cool Data Stored") is not None)
+    colisao = [r for r in linhas if r.get("retailPrice") == 0.0407]
+    nomes = sorted({(r.get("productName"), r.get("meterName")) for r in colisao})
+    print(f"         {len(nomes)} meters distintos a 0,0407:")
+    for pn, mn in nomes:
+        print(f"           {pn} / {mn}")
+    rel.chk("meters distintos colidem em 0,0407 (a Skill afirma 6)", len(nomes) >= 2,
+            f"encontrados {len(nomes)}")
+
+    if not completo:
+        print("\n         (contagens sobre a regiao inteira exigem --snapshot de sweep)")
+        return
+
+    rel.secao("contagens sobre a regiao inteira")
+    rel.chk("snapshot e so de Consumption",
+            all(r.get("type") == "Consumption" for r in linhas))
+    chave5 = collections.Counter()
+    precos5 = collections.defaultdict(set)
+    for r in linhas:
+        k = (r.get("serviceName"), r.get("productName"), r.get("meterName"),
+             r.get("skuName"), r.get("tierMinimumUnits"))
+        chave5[k] += 1
+        precos5[k].add(r.get("retailPrice"))
+    amb5 = [k for k, v in chave5.items() if v > 1]
+    div5 = [k for k in amb5 if len(precos5[k]) > 1]
+    print(f"         chave de 5 campos: {len(amb5)} combinacoes ambiguas, "
+          f"{len(div5)} com preco divergente")
+    for k in div5:
+        print(f"           divergente: {k[0]} / {k[2]}")
+    rel.chk("a chave de 5 campos resolve preco para os servicos em escopo",
+            not [k for k in div5 if k[0] in SERVICOS],
+            "ha divergencia em servico do catalogo: reveja a chave na Skill")
+
+    rel.secao("Fabric F SKU: o que uma busca por 'F64' devolve (armadilha 5)")
+    vazio = [r for r in linhas if "f64 capacity" in (r.get("skuName") or "").lower()]
+    rel.chk("skuName 'F64 Capacity' nao existe", not vazio, f"{len(vazio)} linhas")
+    vms = [r for r in linhas
+           if r.get("serviceName") == "Virtual Machines"
+           and (r.get("skuName") or "").startswith("F64")
+           and "Spot" not in (r.get("skuName") or "")
+           and "Low Priority" not in (r.get("skuName") or "")
+           and "Windows" not in (r.get("productName") or "")]
+    if vms:
+        lo = round(min(r["retailPrice"] for r in vms) * HORAS_MES, 2)
+        hi = round(max(r["retailPrice"] for r in vms) * HORAS_MES, 2)
+        real = round(64 * CU_HORA * HORAS_MES, 2)
+        print(f"         {len(vms)} VMs F64 Linux pagas: {lo} a {hi}/mes")
+        print(f"         Fabric F64 real (sob demanda):  {real}/mes")
+        rel.chk("as VMs F64 sao mais baratas que o Fabric F64 — valor errado parece plausivel",
+                hi < real)
+
+
+def conferir_skill(rel: Relatorio) -> None:
+    rel.secao("consistencia da SKILL_unified.md")
+    if not SKILL.exists():
+        rel.chk(f"encontrar {SKILL.name}", False, str(SKILL))
+        return
+    texto = SKILL.read_text(encoding="utf-8")
+    for t in EXIGE:
+        rel.chk(f"a Skill contem: {t}", t in texto)
+    for t in PROIBE:
+        rel.chk(f"a Skill NAO contem: {t}", t not in texto,
+                "instrucao que nao funciona voltou ao arquivo")
+
+
+def main(argv: list[str] | None = None) -> int:
+    p = argparse.ArgumentParser(
+        description="Confere os precos afirmados na SKILL contra a Retail Prices API",
+        epilog="Falha nao e necessariamente bug: pode ser preco que a Azure mudou. "
+               "Leia a falha e corrija a Skill, nao o numero esperado aqui.")
+    p.add_argument("--snapshot", default=None,
+                   help="JSON gerado por 'sonda_catalogo.py sweep --json'. "
+                        "Sem isso, busca ao vivo apenas os servicos em escopo.")
+    p.add_argument("--timeout", type=int, default=60)
+    p.add_argument("--verbose", "-v", action="store_true",
+                   help="mostra tambem as conferencias que passaram")
+    args = p.parse_args(argv)
+
+    try:
+        linhas, fonte = carregar(args.snapshot, args.timeout)
+    except FileNotFoundError:
+        print(f"snapshot nao encontrado: {args.snapshot}", file=sys.stderr)
+        print("gere um com: python sonda_catalogo.py sweep --region brazilsouth "
+              "--max-pages 400 --json brazilsouth-AAAA-MM-DD.json", file=sys.stderr)
+        return 2
+    if not linhas:
+        print("nenhuma linha carregada — API fora do ar ou snapshot vazio", file=sys.stderr)
+        return 2
+
+    completo = bool(args.snapshot)
+    print(f"fonte: {fonte}")
+    print(f"skill: {SKILL}")
+    if not completo:
+        print("modo parcial: contagens sobre a regiao inteira precisam de --snapshot")
+
+    rel = Relatorio(args.verbose)
+    idx = indexar(linhas)
+    conferir_precos(rel, idx)
+    conferir_fabric(rel, idx, args.timeout)
+    conferir_armadilhas(rel, idx, linhas, completo)
+    conferir_skill(rel)
+
+    print("\n" + "=" * 68)
+    print(f"{rel.ok} conferencias passaram, {len(rel.falhas)} falharam")
+    for f in rel.falhas:
+        print(f"  - {f}")
+    if rel.falhas:
+        print("\nAntes de ajustar numero esperado aqui: confirme na API e corrija a Skill.")
+        print("  python sonda_catalogo.py probe --service \"<servico>\" --region brazilsouth")
+    return 1 if rel.falhas else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
