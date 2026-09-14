@@ -137,24 +137,222 @@ Observações:
 
 ## Arquiteturas padrão Dataside — Azure
 
-<!--
-  COMO PREENCHER:
-  Adicione uma entrada por arquitetura padrão Dataside para Azure, seguindo o formato
-  das arquiteturas AWS acima. Quando preenchidas, têm prioridade sobre o conhecimento
-  geral do Claude na sugestão de serviços — e devem ser sinalizadas ao arquiteto como
-  padrão da empresa.
+#### Arquitetura 1 — Modern Data Platform / Lakehouse com Databricks e Fabric Integration
 
-  FORMATO DE CADA ENTRADA:
-  #### [Nome da arquitetura]
-  Casos de uso: [quando usar]
-  Serviços:
-  - [camada]: [serviço] — [observação]
-  Observações: [restrições, variações, pontos de atenção]
--->
+Casos de uso: plataforma de dados em nuvem Azure estruturada em camadas Medallion (Bronze,
+Silver, Gold), combinando Azure Databricks para processamento analítico com suporte a IA
+generativa e conectividade ao Microsoft Fabric (Direct Lake / Shortcuts).
 
-<!-- ADICIONE AS ARQUITETURAS PADRÃO DATASIDE AZURE ABAIXO -->
+Serviços:
+- Ingestão (batch/pipelines): Azure Data Factory (ADF) — orquestração e ingestão principal
+- Ingestão (on-premise):    ExpressRoute / VM Self-Hosted Integration Runtime — conectividade
+  privada, segura e de alta velocidade para ambientes on-premise e sistemas legados
+- Ingestão (fontes modernas): Databricks Ingestion / Lakeflow — APIs, Google Analytics, Excel
+  e streaming de bancos SQL/NoSQL
+- Storage:                Azure Data Lake Storage Gen2 (ADLS Gen2) — Delta Lake nas camadas
+  Bronze (brutos), Silver (enriquecidos) e Gold (modelados)
+- Processamento:          Azure Databricks (Core Processing) — motor unificado Spark para
+  limpeza, transformação e regras de negócio via SQL Notebooks
+- Orquestração:           Unity Catalog / ADF — gerenciamento do ciclo de vida e agendamento
+  de jobs do pipeline
+- IA (All Layer):         Azure OpenAI Service & Databricks AI — integração de LLMs e IA
+  generativa consumindo dados tratados da camada Gold
+- Serving (DW):           Databricks (SQL Warehouse) — data warehousing serverless
+- Serving (BI direto):    Direct Lake / Shortcuts (Microsoft Fabric integration) — conectividade
+  direta de baixíssima latência para o Power BI sem cópia de dados
+- BI & IA:                Power BI + Databricks Genie (assistente de BI conversacional)
+- Governança:             Unity Catalog — governança centralizada, auditoria, controle de
+  acesso refinado e data lineage para todos os ativos no Data Lake
+- Segurança:              Azure Key Vault — gestão segura de segredos, chaves e credenciais
+- Monitoramento:          Azure Monitor / Log Analytics
+- Gestão de custos:       Microsoft Cost Management
 
-<!-- FIM DAS ARQUITETURAS PADRÃO AZURE -->
+Observações:
+- Calcular SEMPRE VM/compute do Databricks no estimate Azure + DBU separado — nunca somar
+  duas vezes
+- ExpressRoute só entra na estimativa quando há integração on-premise real
+- Direct Lake evita duplicação de dados entre Databricks e Fabric — validar se o cliente já
+  possui licença Fabric antes de incluir no escopo
+- Para clientes financeiros/saúde: confirmar região Brazil South (LGPD/BACEN)
+
+---
+
+#### Arquitetura 2 — Lakehouse Puramente Databricks
+
+Casos de uso: versão simplificada e focada exclusivamente no ecossistema Databricks,
+reduzindo componentes adicionais da Azure ao utilizar o Databricks como motor unificado de
+ingestão, processamento, governança e serving.
+
+Serviços:
+- Ingestão (todas as fontes): Databricks (Auto Loader / Lakeflow) — principal motor de
+  ingestão para Oracle, MongoDB, Google Analytics, APIs, Excel e SQL
+- Ingestão (on-premise):    VMs Runtime On-Premise — ponte de conexão com ambientes e bancos
+  de dados locais/privados
+- Storage:                Azure Data Lake Storage Gen2 (ADLS Gen2) — Delta Lake nas camadas
+  Bronze (bruto), Silver (limpo) e Gold (pronto para consumo)
+- Processamento:          Azure Databricks (Core Processing) — Apache Spark + SQL Notebooks
+  para transformação e movimentação entre as camadas Medallion
+- Orquestração:           Unity Catalog / Databricks Workflows — orquestração de tarefas e
+  controle do pipeline
+- IA (All Layer):         Azure OpenAI Service & Databricks AI — IA generativa e machine
+  learning sobre as camadas de dados tratadas
+- Serving (DW):           Databricks (SQL Warehouse) — motor analítico para consultas de
+  alta performance
+- BI & IA:                Power BI — ferramenta única de visualização consumindo diretamente
+  os dados do Databricks
+- Governança:             Unity Catalog — gerenciamento de acesso, catálogo de dados e
+  linhagem
+- Segurança:              Azure Key Vault — gestão de credenciais e segredos
+- Monitoramento:          Azure Monitor — telemetria e métricas de desempenho
+- Gestão de custos:       Microsoft Cost Management
+
+Observações:
+- Azure Data Factory entra apenas como gerenciamento complementar do ambiente — não é o
+  motor de ingestão principal (diferença da Arquitetura 1)
+- Calcular SEMPRE VM/compute do Databricks no estimate Azure + DBU separado — nunca somar
+  duas vezes
+- Sem integração com Microsoft Fabric (Direct Lake/Shortcuts) — diferença da Arquitetura 1
+- Para clientes financeiros/saúde: confirmar região Brazil South (LGPD/BACEN)
+
+---
+
+#### Arquitetura 3 — Modern Data Platform / Lakehouse com Copilot Studio e Conectores de Consumo Ampliados
+
+Casos de uso: arquitetura Lakehouse centrada no Azure Databricks e no Unity Catalog, que
+expande as capacidades de consumo e IA integrando o Microsoft Copilot Studio e plataformas
+externas de automação/mensageria.
+
+Serviços:
+- Ingestão (batch/pipelines): Azure Data Factory (ADF) — ingestão e orquestração dos fluxos
+  principais
+- Ingestão (on-premise):    ExpressRoute / VM Self-Hosted Integration Runtime — conectividade
+  privada e segura para sistemas on-premise e bancos legados
+- Ingestão (SaaS/APIs/arquivos): Databricks (Lakeflow / Ingestion) — Google Analytics, APIs,
+  arquivos planos (Excel) e bancos relacionais/NoSQL
+- Storage:                Azure Data Lake Storage Gen2 (ADLS Gen2) — Delta Lake nas camadas
+  Medallion (Bronze, Silver e Gold)
+- Processamento:          Azure Databricks (Core Processing) — Apache Spark + SQL Notebooks
+  para transformação e limpeza dos dados
+- Orquestração:           Unity Catalog / ADF — agendamento e controle de execução das
+  rotinas de ETL/ELT
+- IA (All Layer):         Microsoft Copilot Studio & Databricks AI — substitui a camada
+  OpenAI para criar agentes de IA conversacionais personalizados e modelos avançados
+  alimentados pelos dados da camada Gold
+- Serving (DW):           Databricks (SQL Warehouse) — processamento analítico para queries
+  de alta performance
+- BI & IA (consumo ampliado): Power BI (dashboards e relatórios corporativos) + Lovable /
+  Belake.ai (plataformas web/low-code acionadas por dados) + WhatsApp (mensageria para
+  alertas, notificações e interação via bots)
+- Governança:             Unity Catalog — controle de acesso refinado, auditoria e linhagem
+  de dados
+- Segurança:              Azure Key Vault — gerenciamento de chaves e segredos
+- Monitoramento:          Azure Monitor — telemetria, logs e métricas de desempenho
+- Gestão de custos:       Microsoft Cost Management
+
+Observações:
+- Copilot Studio substitui o Azure OpenAI Service da Arquitetura 1 como camada de IA
+  conversacional — validar licenciamento do cliente antes de incluir no escopo
+- Lovable/Belake.ai e integração WhatsApp são custos FORA do Azure Pricing — estimar à parte
+  (licenças/assinaturas de terceiros)
+- Calcular SEMPRE VM/compute do Databricks no estimate Azure + DBU separado — nunca somar
+  duas vezes
+- Para clientes financeiros/saúde: confirmar região Brazil South (LGPD/BACEN)
+
+---
+
+#### Arquitetura 4 — Microsoft Fabric End-to-End Platform
+
+Casos de uso: plataforma moderna de dados 100% baseada no ecossistema nativo Microsoft
+Fabric, substituindo o Databricks pelo Fabric Data Engineering e OneLake para
+processamento, governança unificada via Purview e integração com IA.
+
+Serviços:
+- Ingestão (batch/pipelines): Fabric Data Factory — orquestração e ingestão totalmente
+  integradas à experiência do Microsoft Fabric
+- Ingestão (on-premise):    ExpressRoute / VMs Runtime On-Premise — conexão privada para
+  transferência segura de dados de ambientes locais e legados
+- Ingestão (fontes heterogêneas): Fabric Data Factory — Oracle, MongoDB, Google Analytics,
+  APIs, Excel e SQL
+- Storage:                OneLake / Delta Lake — repositório centralizado nativo do Fabric
+  com as camadas Medallion (Bronze, Silver e Gold) sob padrão Delta Lake
+- Processamento:          Data Engineering Fabric (Core Processing) — motor unificado
+  baseado em Apache Spark e SQL Notebooks para tratamento, limpeza e transformação
+- Orquestração:           Fabric Pipelines / Purview — controle de execução do ciclo de
+  vida dos dados
+- IA (All Layer):         Azure OpenAI Service & Fabric Copilot — IA generativa e
+  assistentes inteligentes consumindo dados refinados da camada Gold
+- Serving (DW):           Fabric Lakehouse / Synapse Data Warehouse — motor analítico
+  nativo para servir dados de alta performance
+- Serving (BI direto):    Direct Lake / Shortcuts — conectividade em tempo real para o
+  Power BI sem cópia de dados (zero-ETL/zero-duplication)
+- BI & IA:                Power BI — ferramenta central de relatórios e visualização
+  analítica
+- Governança:             Microsoft Purview — catálogo, compliance, auditoria e linhagem
+  integrados nativamente
+- Segurança:              Azure Key Vault — gestão de credenciais e chaves
+- Monitoramento:          Azure Monitor — monitoramento e telemetria
+- Gestão de custos:       Microsoft Cost Management — governança e controle de custos do
+  ambiente Azure/Fabric
+
+Observações:
+- Sem Databricks — Fabric Data Engineering substitui processamento, Unity Catalog é
+  substituído por Purview (diferença das Arquiteturas 1-3)
+- Capacidade Fabric (F SKUs) é o item de custo central — dimensionar pela carga de
+  processamento/consumo, não por VM individual
+- Direct Lake evita duplicação de dados para o Power BI nativamente, sem depender de
+  integração externa (diferença da Arquitetura 1, que integra Databricks ao Fabric)
+- Para clientes financeiros/saúde: confirmar região Brazil South (LGPD/BACEN)
+
+---
+
+#### Arquitetura 5 — Híbrida Databricks + Microsoft Fabric para ERP/SQL Enterprise
+
+Casos de uso: arquitetura corporativa voltada para ingestão intensiva de sistemas core (SAP
+e SQL Server), combinando o poder de processamento do Databricks com a ponte de integração
+nativa do Microsoft Fabric (Direct Lake / Shortcuts) para relatórios e IA.
+
+Serviços:
+- Ingestão (batch/pipelines): Fabric Data Factory — orquestrador principal dos fluxos e
+  conectores corporativos
+- Ingestão (on-premise):    ExpressRoute / VMs Runtime On-Premise — infraestrutura dedicada
+  para extração de alto volume e baixa latência de dados de sistemas SAP e SQL Server
+- Storage:                Azure Databricks (Delta Lake) — camadas Medallion (Bronze, Silver
+  e Gold) em formato Delta Lake
+- Processamento:          Azure Databricks (Core Processing) — processamento das camadas
+  Medallion
+- Integração Fabric:      Direct Lake / Shortcut (Connect Databricks to Microsoft Fabric) —
+  ponte que conecta o armazenamento gerenciado pelo Databricks diretamente ao OneLake do
+  Microsoft Fabric sem necessidade de mover ou duplicar dados
+- Orquestração:           Unity Catalog / Purview — controle central de acesso, governança e
+  orquestração dos pipelines
+- IA (All Layer):         Azure OpenAI Service & Microsoft Fabric AI — LLMs e IA generativa
+  atuando sobre os dados refinados corporativos
+- Serving (BI direto):    Direct Lake / Shortcuts — entrega analítica de ultra-baixa
+  latência para ferramentas de visualização
+- BI & IA (consumo):      Power BI (visualização via Direct Lake) + Belake.ai (integração
+  com aplicações web e plataformas personalizadas) + Genie / Copilot Studio (assistentes
+  virtuais e bots de IA conversacional treinados nos dados do negócio)
+- Governança:             Unity Catalog (Databricks) + Microsoft Purview — governança dupla,
+  integração entre as duas ferramentas para rastreabilidade de linhagem e controle de
+  acesso unificado
+- Segurança:              Azure Key Vault — gerenciamento seguro de credenciais e segredos
+- Monitoramento:          Azure Monitor — telemetria e métricas operacionais
+- Gestão de custos:       Microsoft Cost Management — monitoramento e alocação de custos
+  Azure/Fabric
+
+Observações:
+- Governança dupla (Unity Catalog + Purview) — validar com o cliente se ambas as
+  ferramentas serão realmente usadas em paralelo ou se uma substitui a outra, para não
+  gerar custo/esforço redundante
+- Indicada para clientes com ingestão pesada de SAP/SQL Server on-premise — dimensionar
+  ExpressRoute e Self-Hosted Integration Runtime pelo volume real de extração
+- Calcular SEMPRE VM/compute do Databricks no estimate Azure + DBU separado — nunca somar
+  duas vezes
+- Belake.ai e Copilot Studio podem envolver custos FORA do Azure Pricing — estimar à parte
+  (licenças/assinaturas de terceiros)
+- Para clientes financeiros/saúde: confirmar região Brazil South (LGPD/BACEN)
+
+---
 
 ---
 
