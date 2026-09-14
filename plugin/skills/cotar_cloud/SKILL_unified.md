@@ -156,6 +156,7 @@ Serviços:
 - Orquestração:           Unity Catalog / ADF — gerenciamento do ciclo de vida e agendamento
   de jobs do pipeline
 - IA (All Layer):         Azure OpenAI Service & Databricks AI — integração de LLMs e IA
+                          (na API: `serviceName = "Foundry Models"`, não "Azure OpenAI Service")
   generativa consumindo dados tratados da camada Gold
 - Serving (DW):           Databricks (SQL Warehouse) — data warehousing serverless
 - Serving (BI direto):    Direct Lake / Shortcuts (Microsoft Fabric integration) — conectividade
@@ -195,6 +196,7 @@ Serviços:
 - Orquestração:           Unity Catalog / Databricks Workflows — orquestração de tarefas e
   controle do pipeline
 - IA (All Layer):         Azure OpenAI Service & Databricks AI — IA generativa e machine
+                          (na API: `serviceName = "Foundry Models"`, não "Azure OpenAI Service")
   learning sobre as camadas de dados tratadas
 - Serving (DW):           Databricks (SQL Warehouse) — motor analítico para consultas de
   alta performance
@@ -280,6 +282,7 @@ Serviços:
 - Orquestração:           Fabric Pipelines / Purview — controle de execução do ciclo de
   vida dos dados
 - IA (All Layer):         Azure OpenAI Service & Fabric Copilot — IA generativa e
+                          (na API: `serviceName = "Foundry Models"`, não "Azure OpenAI Service")
   assistentes inteligentes consumindo dados refinados da camada Gold
 - Serving (DW):           Fabric Lakehouse / Synapse Data Warehouse — motor analítico
   nativo para servir dados de alta performance
@@ -326,6 +329,7 @@ Serviços:
 - Orquestração:           Unity Catalog / Purview — controle central de acesso, governança e
   orquestração dos pipelines
 - IA (All Layer):         Azure OpenAI Service & Microsoft Fabric AI — LLMs e IA generativa
+                          (na API: `serviceName = "Foundry Models"`, não "Azure OpenAI Service")
   atuando sobre os dados refinados corporativos
 - Serving (BI direto):    Direct Lake / Shortcuts — entrega analítica de ultra-baixa
   latência para ferramentas de visualização
@@ -366,6 +370,90 @@ busca mal formada devolve linha plausível com preço errado. Todos os casos aba
 foram verificados contra a API em `brazilsouth`, sobre 12.637 meters de
 `type = 'Consumption'`.
 
+### O que o MCP devolve, e o que ele não devolve
+
+**Leia isto antes da chave de cinco campos.** A Retail Prices API tem 20 campos por
+linha. O `azure-pricing-mcp` devolve oito, e os que faltam são justamente os que
+desambiguam preço:
+
+| Campo | Na API | No MCP |
+| --- | :-: | :-: |
+| `serviceName` | ✓ | ✓ como `service` |
+| `productName` | ✓ | ✓ como `product` |
+| `skuName` | ✓ | ✓ como `sku` |
+| `unitOfMeasure` | ✓ | ✓ como `unit` |
+| `retailPrice` | ✓ | ✓ como **`discounted_price`** |
+| **`meterName`** | ✓ | ✗ **não volta, e não é filtrável** |
+| **`tierMinimumUnits`** | ✓ | ✗ **não volta** |
+| `reservationTerm` | ✓ | ✗ |
+
+Consequência direta, verificada em `brazilsouth`: buscar `Key Vault` devolve estas
+quatro linhas, entre outras:
+
+```
+product="Key Vault"  sku="Premium"  unit="1"  discounted_price=5.0
+product="Key Vault"  sku="Premium"  unit="1"  discounted_price=2.5
+product="Key Vault"  sku="Premium"  unit="1"  discounted_price=0.9
+product="Key Vault"  sku="Premium"  unit="1"  discounted_price=0.4
+```
+
+São `Premium HSM-protected Advanced Key` nas faixas 0 / 250 / 1.500 / 4.000.
+Idênticas em todo campo devolvido, exceto o preço. **Não há como distinguir.**
+
+Mesma coisa em `Log Analytics` / `Analytics Logs`: três linhas na unidade `1 GB` a
+0,0 / 2,3 / 4,6, que são `Data Ingestion` na faixa 0, `Data Analyzed` e
+`Data Ingestion` a partir de 5 GB. Pelo MCP, indecidível.
+
+**Portanto: a allowlist desta seção é a fonte de preço. O MCP serve para descobrir
+o que existe e confirmar ordem de grandeza — não para resolver preço.**
+
+Isso não é uma concessão: a allowlist foi construída lendo a API diretamente, com
+os cinco campos à vista, e é reconferível a qualquer momento com
+`python tools/valida_precos.py`.
+
+### Serviço que não está na allowlist
+
+Você **não consegue** resolver preço dele com as tools disponíveis. Não tente.
+
+```
+⚠️ [Serviço] — faz parte da arquitetura, sem valor nesta estimativa.
+   Não está no catálogo de meters verificados desta Skill, e o MCP não
+   devolve os campos necessários para resolver o preço com segurança.
+   Levantar em prices.azure.com ou confirmar com o parceiro Microsoft.
+```
+
+Nunca improvise. Nunca use "o primeiro resultado". Nunca estime de memória. Uma
+linha sem valor e declarada é honesta; uma linha com número errado vira proposta.
+
+Se o serviço aparecer com frequência, ele merece entrar na allowlist — o caminho é
+`python tools/sonda_catalogo.py probe --service "<nome>" --region brazilsouth`,
+conferir os cinco campos e acrescentar a tabela aqui.
+
+### Quando vierem vários preços para o mesmo product e sku
+
+Acontece o tempo todo, e o MCP não diz qual é qual. Regra:
+
+1. Se o meter estiver na allowlist, **use o valor da allowlist** e ignore o resto.
+2. Se não estiver, a linha sai sem valor (acima).
+
+**Não deduza a faixa pelo preço.** É tentador supor que o maior valor é
+`tierMinimumUnits = 0`, e em armazenamento e Key Vault isso é verdade, porque o
+preço cai conforme o volume sobe. Mas não é regra da API: em
+`Log Analytics / Analytics Logs Data Ingestion` a faixa 0 custa **0,0** e a faixa de
+5 GB custa **4,60** — o menor valor é a primeira faixa. Quem deduzir pelo maior
+preço erra aqui.
+
+### Atenção ao nome `discounted_price`
+
+O campo do MCP se chama `discounted_price` e existe um parâmetro
+`discount_percentage` na busca. Com o padrão (`show_with_discount: false`) o valor
+devolvido **é** o preço retail — conferido contra a API. Mas:
+
+- nunca passe `discount_percentage` nem `show_with_discount`: a Skill cota preço
+  público, e desconto negociado é assunto do parceiro;
+- se um valor vier abaixo do que a allowlist registra, suspeite de desconto
+  aplicado antes de suspeitar de mudança de preço.
+
 ### Chave de resolução — cinco campos, não um
 
 Um preço só está resolvido quando os cinco campos estão fixados:
@@ -388,6 +476,11 @@ forma única.
 
 Se a busca devolver mais de uma linha com preço diferente, **não escolha a
 primeira**. Estreite a busca até sobrar uma, ou pergunte ao arquiteto qual variante.
+
+**Onde esta chave é aplicável.** Ela descreve como o preço foi resolvido para montar
+a allowlist abaixo, lendo a Retail Prices API diretamente com `tools/sonda_catalogo.py`.
+Ela **não** é executável em tempo de conversa pelo MCP, que não devolve dois dos cinco
+campos — ver a seção anterior. Em tempo de conversa, a allowlist é a fonte.
 
 ### Normalização antes de comparar
 
@@ -546,6 +639,136 @@ Os primeiros 100 GB/mês são gratuitos (`tierMinimumUnits = 0` a 0,0 — este �
 zero legítimo). Na falta de informação, use `Routing Preference: Internet` e
 declare como premissa. Transferência entre zonas de disponibilidade custa 0,01/GB
 em cada direção; entre regiões, 0,16/GB.
+
+**Azure Monitor e Log Analytics** — aparecem em todas as cinco arquiteturas Azure.
+São `serviceName` **diferentes**, com meters diferentes:
+
+| serviceName | productName | meterName | `tier` | preço |
+| --- | --- | --- | ---: | ---: |
+| `Log Analytics` | `Log Analytics` | `Analytics Logs Data Ingestion` | 0 | **0,0** (5 GB grátis) |
+| `Log Analytics` | `Log Analytics` | `Analytics Logs Data Ingestion` | 5 | 4,60 / GB |
+| `Log Analytics` | `Log Analytics` | `Analytics Logs Data Analyzed` | 0 | 2,30 / GB |
+| `Log Analytics` | `Log Analytics` | `Analytics Logs Data Retention` | 0 | 0,20 / GB-mês |
+| `Azure Monitor` | `Azure Monitor` | `Basic Logs Data Ingestion` | 0 | 1,00 / GB |
+| `Azure Monitor` | `Azure Monitor` | `Auxiliary Logs Data Ingestion` | 0 | 0,10 / GB |
+| `Azure Monitor` | `Azure Monitor` | `Alerts Resource Monitored at 1 Minute Frequency` | 0 | 0,30 / mês |
+| `Azure Monitor` | `Azure Monitor` | `Alerts Metric Monitored` | 10 | 0,10 / mês |
+
+Os primeiros 5 GB/mês de ingestão em `Analytics Logs` são gratuitos — este é um zero
+legítimo, com meter irmão em `tierMinimumUnits = 5`. Para estimar, peça o volume de
+log em GB/mês; sem isso a linha sai declarada sem valor.
+
+**Azure Data Factory** — `serviceName = "Azure Data Factory v2"` (não
+`Azure Data Factory`, que é a v1). O `skuName` separa onde o pipeline roda:
+
+| skuName | meterName | preço |
+| --- | --- | ---: |
+| `Cloud` | `Cloud Orchestration Activity Run` | 1,00 / 1K execuções |
+| `Cloud` | `Cloud Data Movement` | 0,25 / hora-DIU |
+| `Cloud` | `Cloud Pipeline Activity` | 0,005 / hora |
+| `Self Hosted` | `Self Hosted Orchestration Activity Run` | 1,50 / 1K execuções |
+| `Self Hosted` | `Self Hosted Data Movement` | 0,10 / hora |
+| `Cloud` e `Self Hosted` | `Inactive Pipeline` | 0,80 / mês |
+
+`Self Hosted` custa 50% mais por execução que `Cloud`. Pergunte se a ingestão é de
+origem on-premise antes de escolher.
+
+**Microsoft Purview** — duas armadilhas de uma vez. Existem **dois** serviços:
+
+| serviceName | O que é |
+| --- | --- |
+| `Azure Purview` | geração anterior (Purview Data Map) |
+| `Microsoft Purview` | o produto atual |
+
+E `Microsoft Purview` se divide em `Microsoft Purview Data Governance` e
+`Microsoft Purview Data Compliance`. Referência:
+
+| productName | meterName | preço |
+| --- | --- | ---: |
+| `Microsoft Purview Data Governance` | `Data Management Basic Data Governance Processing Unit` | 15,00 |
+| `Microsoft Purview Data Governance` | `Data Management Advanced Data Governance Processing Unit` | 240,00 |
+| `Microsoft Purview Data Governance` | `Data Management Standard Data Governance Processing Unit` | 60,00 |
+| `Microsoft Purview Data Governance` | `Data Catalog Standard Asset` | 0,0165 / ativo-dia |
+| `Azure Purview Data Map` | `Standard Capacity Unit` | 0,411 / hora |
+
+A cobrança de Data Governance é **por ativo catalogado**, número que o arquiteto
+raramente tem na conversa. Na dúvida, declare sem valor em vez de arbitrar.
+
+**ExpressRoute** — só o gateway tem meter aqui; o circuito é contratado à parte,
+normalmente já existente no cliente.
+
+| productName | skuName | preço / hora |
+| --- | --- | ---: |
+| `ExpressRoute Standard Gateway` | `Standard` | 0,19 |
+| `ExpressRoute High Performance Gateway` | `High Performance` | 0,49 |
+| `ExpressRoute Gateway` | `ErGw1AZ` | 0,361 |
+| `ExpressRoute Gateway` | `ErGw2AZ` | 0,632 |
+| `ExpressRoute Gateway` | `ErGw3AZ` | 2,151 |
+
+Pergunte sempre se o circuito já existe. Se existir, ele sai do escopo da proposta e
+isso vira premissa.
+
+**Microsoft Copilot Studio** — tem meter de consumo no Azure, além do licenciamento
+M365: `Pay As You Go Message` e `Pay As You Go Copilot Credit`, ambos a **0,01** por
+unidade. Se o cliente for pelo modelo de licença por usuário, aí sim é M365 e sai sem
+valor — pergunte qual dos dois antes de decidir.
+
+**IoT Hub** — cobrado por unidade/mês, não por hora. Não aplique redução de horas em
+HML e Dev; reduza tier ou quantidade de unidades.
+
+| skuName | preço / mês |
+| --- | ---: |
+| `B1` | 20,00 |
+| `B2` | 100,00 |
+| `B3` | 1.000,00 |
+| `S1` | 50,00 |
+| `S2` | 500,00 |
+| `S3` | 5.000,00 |
+
+A cota diária de mensagens por unidade é limite de produto e **não** está na API —
+o dimensionamento de quantas unidades vem do arquiteto, e é premissa declarada.
+
+**Stream Analytics** — o `skuName` distingue gerações com preço muito diferente:
+
+| skuName | meterName | `tier` | preço / hora |
+| --- | --- | ---: | ---: |
+| `Standard` | `Standard Streaming Unit` | 0 | 0,125 |
+| `Dedicated` | `Dedicated Streaming Unit` | 0 | 0,125 |
+| `Standard V2` | `Standard V2 Streaming Unit/Job` | 0 | 0,6733 |
+| `Dedicated V2` | `Dedicated V2 Streaming Unit/Job` | 730 | 0,288307 |
+| `Dedicated V2` | `Dedicated V2 Streaming Unit/Job` | 5.840 | 0,239964 |
+
+V2 custa **5,4× mais** que V1 na primeira faixa, e é escalonado por horas acumuladas.
+Confirme a geração com o arquiteto; não assuma.
+
+**Azure Functions** — `serviceName = "Functions"`, com dois planos que são
+`productName` distintos:
+
+| productName | meterName | `tier` | preço |
+| --- | --- | ---: | ---: |
+| `Functions` | `Standard Execution Time` | 400.000 | 0,000016 / GB-s |
+| `Flex Consumption` | `On Demand Execution Time` | 100.000 | 0,000037 / GB-s |
+| `Flex Consumption` | `On Demand Total Executions` | 25.000 | 0,000004 / 10 exec |
+| `Flex Consumption` | `Always Ready Baseline` | 0 | 0,000005 / GB-s |
+
+Repare no `tierMinimumUnits` alto: as faixas gratuitas do Consumption clássico são
+grandes (400.000 GB-s), então cargas pequenas custam praticamente zero — e esse zero
+**é** legítimo. Diga que é faixa gratuita, não omita a linha.
+
+**Azure OpenAI** — `serviceName = "Foundry Models"`, **não** "Azure OpenAI Service",
+que não existe como serviço. O nome "Azure OpenAI" aparece no `productName`:
+
+| productName | meterName | preço |
+| --- | --- | ---: |
+| `Azure OpenAI GPT5` | `GPT 5 Chat Inpt Glbl 1M Tokens` | 1,25 / 1M tokens |
+| `Azure OpenAI GPT5` | `GPT 5 Chat outpt Glbl 1M Tokens` | 10,00 / 1M tokens |
+| `Azure OpenAI GPT5` | `GPT 5 Chat cchd Inpt Glbl 1M Tokens` | 0,125 / 1M tokens |
+| `Azure OpenAI GPT5` | `GPT 5 Batch Inpt Glbl 1M Tokens` | 0,625 / 1M tokens |
+
+São 715 meters sob `Foundry Models`, um por modelo e modalidade. Entrada e saída têm
+preços diferentes (fator 8 no GPT-5), e cache e batch são mais baratos. Sem volume de
+tokens estimado pelo arquiteto, esta linha sai declarada sem valor — e quase sempre
+sai, porque ninguém tem esse número no início do projeto.
 
 **Private Link e Private Endpoint** — **não existem** na Retail Prices API, nem em
 `brazilsouth` nem em `eastus`. A varredura completa devolveu só dois falsos

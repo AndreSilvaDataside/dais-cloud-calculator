@@ -37,6 +37,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from sonda_catalogo import buscar, montar_filtro, normalizar  # noqa: E402
 
+# O console do Windows usa cp1252 e nao aceita os acentos e setas desta saida.
+# Sem isto a ferramenta quebra justamente ao imprimir uma FALHA, que e a unica
+# hora em que ela precisa ser lida.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 REGIAO = "brazilsouth"
 
 SKILL = Path(__file__).resolve().parents[1] / "plugin" / "skills" / "cotar_cloud" / "SKILL_unified.md"
@@ -49,6 +56,17 @@ SERVICOS = [
     "Key Vault",
     "Bandwidth",
     "Virtual Machines",
+    "Log Analytics",
+    "Azure Monitor",
+    "Azure Data Factory v2",
+    "Microsoft Purview",
+    "Azure Purview",          # geracao anterior: o par da armadilha 1
+    "ExpressRoute",
+    "Microsoft Copilot Studio",
+    "IoT Hub",
+    "Stream Analytics",
+    "Functions",
+    "Foundry Models",
 ]
 
 # ---------------------------------------------------------------------------
@@ -119,6 +137,45 @@ PRECOS = [
     ("Premium SSD Managed Disks", "P10 LRS Disk", 34.05),
     ("Premium SSD Managed Disks", "P10 LRS Disk Mount", 1.82),
     ("Premium SSD Managed Disks", "P10 ZRS Disk", 51.075),
+    # --- Log Analytics / Azure Monitor ---
+    ("Log Analytics", "Analytics Logs Data Analyzed", 2.3),
+    ("Log Analytics", "Analytics Logs Data Retention", 0.2),
+    ("Azure Monitor", "Basic Logs Data Ingestion", 1.0),
+    ("Azure Monitor", "Auxiliary Logs Data Ingestion", 0.1),
+    ("Azure Monitor", "Alerts Resource Monitored at 1 Minute Frequency", 0.3),
+    # --- Azure Data Factory v2 ---
+    ("Azure Data Factory v2", "Cloud Orchestration Activity Run", 1.0),
+    ("Azure Data Factory v2", "Cloud Data Movement", 0.25),
+    ("Azure Data Factory v2", "Cloud Pipeline Activity", 0.005),
+    ("Azure Data Factory v2", "Self Hosted Orchestration Activity Run", 1.5),
+    ("Azure Data Factory v2", "Self Hosted Data Movement", 0.1),
+    # --- Purview ---
+    ("Microsoft Purview Data Governance", "Data Management Basic Data Governance Processing Unit", 15.0),
+    ("Microsoft Purview Data Governance", "Data Management Advanced Data Governance Processing Unit", 240.0),
+    ("Microsoft Purview Data Governance", "Data Catalog Standard Asset", 0.0165),
+    ("Azure Purview Data Map", "Standard Capacity Unit", 0.411),
+    # --- ExpressRoute (gateway) ---
+    ("ExpressRoute Standard Gateway", "Standard Gateway", 0.19),
+    ("ExpressRoute High Performance Gateway", "High Performance Gateway", 0.49),
+    ("Microsoft Purview Data Governance", "Data Management Standard Data Governance Processing Unit", 60.0),
+    ("ExpressRoute Gateway", "ErGw1AZ Gateway", 0.361),
+    ("ExpressRoute Gateway", "ErGw3AZ Gateway", 2.151),
+    # --- Copilot Studio ---
+    ("Microsoft Copilot Studio", "Pay As You Go Message", 0.01),
+    ("Microsoft Copilot Studio", "Pay As You Go Copilot Credit", 0.01),
+    # --- IoT Hub (por unidade/mes) ---
+    ("IoT Hub", "B1 Unit", 20.0),
+    ("IoT Hub", "S1 Unit", 50.0),
+    ("IoT Hub", "S2 Unit", 500.0),
+    ("IoT Hub", "S3 Unit", 5000.0),
+    # --- Stream Analytics ---
+    ("Stream Analytics", "Standard Streaming Unit", 0.125),
+    ("Stream Analytics", "Dedicated Streaming Unit", 0.125),
+    ("Stream Analytics", "Standard V2 Streaming Unit/Job", 0.6733),
+    # --- Azure OpenAI: serviceName e "Foundry Models" ---
+    ("Azure OpenAI GPT5", "GPT 5 Chat Inpt Glbl 1M Tokens", 1.25),
+    ("Azure OpenAI GPT5", "GPT 5 Chat outpt Glbl 1M Tokens", 10.0),
+    ("Azure OpenAI GPT5", "GPT 5 Chat cchd Inpt Glbl 1M Tokens", 0.125),
     # --- Egress ---
     ("Bandwidth - Routing Preference: Internet", "Standard Data Transfer Out", 0.0),
     ("Rtn Preference: MGN", "Standard Inter-Region Data Transfer", 0.16),
@@ -134,6 +191,12 @@ FAIXAS = [
     ("Key Vault", "Premium HSM-protected Advanced Key", 4000.0, 0.4),
     ("Azure Data Lake Storage Gen2 Hierarchical Namespace", "Hot GRS Data Stored", 51200.0, 0.0626),
     ("Azure Data Lake Storage Gen2 Hierarchical Namespace", "Hot GRS Data Stored", 512000.0, 0.06),
+    # Log Analytics: a faixa 0 e a MAIS BARATA (0,0) e a faixa 5 custa 4,60.
+    # E o contraexemplo da heuristica "maior preco = tier 0" que a Skill proibe.
+    ("Log Analytics", "Analytics Logs Data Ingestion", 0.0, 0.0),
+    ("Log Analytics", "Analytics Logs Data Ingestion", 5.0, 4.6),
+    ("Stream Analytics", "Dedicated V2 Streaming Unit/Job", 730.0, 0.288307),
+    ("Functions", "Standard Execution Time", 400000.0, 0.000016),
 ]
 
 # Tabela de F SKU da Skill: (CUs, sob demanda/mes, reserva/mes, compromisso anual)
@@ -173,6 +236,14 @@ EXIGE = [
     "Standard_D2s_v5",
     "P10 LRS Disk Mount",
     "CENÁRIO A",
+    "O que o MCP devolve, e o que ele não devolve",
+    "discounted_price",
+    "Não deduza a faixa pelo preço",
+    "Serviço que não está na allowlist",
+    "Foundry Models",
+    "Azure Data Factory v2",
+    "Microsoft Purview Data Governance",
+    "S2` | 500,00",
 ]
 PROIBE = [
     # A instrucao que nao funciona: esse skuName nao existe na API.
