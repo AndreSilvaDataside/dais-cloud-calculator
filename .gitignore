@@ -1,6 +1,10 @@
 # macOS
 .DS_Store
 
+# Cache do Python (tools/ importa sonda_catalogo)
+__pycache__/
+*.pyc
+
 # Dependências npm
 node_modules/
 
@@ -15,3 +19,10 @@ desafio_aceleras.pdf
 
 # Artefatos de build
 dist/
+
+# Snapshot da Retail Prices API (~7,5 MB por regiao).
+# Gere o seu com: python tools/sonda_catalogo.py sweep --json <arquivo>
+# Se o time aprovar usar snapshot com data declarada como fonte de preco,
+# afrouxar esta regra para permitir brazilsouth-AAAA-MM-DD.json. Ver tools/README.md
+brazilsouth*.json
+catalogo.json
