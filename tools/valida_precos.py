@@ -101,6 +101,24 @@ PRECOS = [
     ("Azure Data Lake Storage Gen2 Hierarchical Namespace", "Hot RA-GZRS Data Stored", 0.091688),
     # --- Key Vault ---
     ("Key Vault HSM Pool", "Standard B1 Instance", 3.2),
+    # --- Key Vault: operacoes (allowlist completa) ---
+    ("Key Vault", "Operations", 0.03),
+    ("Key Vault", "Advanced Key Operations", 0.15),
+    ("Key Vault", "Automated Key Rotation", 1.0),
+    ("Key Vault", "Secret Renewal", 1.0),
+    ("Key Vault", "Certificate Renewal Request", 3.0),
+    ("Key Vault", "Premium HSM-protected RSA 2048-bit key", 1.0),
+    # --- ADLS Gen2: operacoes ---
+    ("Azure Data Lake Storage Gen2 Hierarchical Namespace", "Hot Write Operations", 0.091),
+    ("Azure Data Lake Storage Gen2 Hierarchical Namespace", "Hot GRS Write Operations", 0.182),
+    ("Azure Data Lake Storage Gen2 Hierarchical Namespace", "Hot Read Operations", 0.0073),
+    ("Azure Data Lake Storage Gen2 Hierarchical Namespace", "Hot Other Operations", 0.00728),
+    ("Azure Data Lake Storage Gen2 Hierarchical Namespace", "Hot Iterative Write Operations", 0.091),
+    ("Azure Data Lake Storage Gen2 Hierarchical Namespace", "Hot GRS Iterative Write Operations", 0.182),
+    # --- Discos gerenciados ---
+    ("Premium SSD Managed Disks", "P10 LRS Disk", 34.05),
+    ("Premium SSD Managed Disks", "P10 LRS Disk Mount", 1.82),
+    ("Premium SSD Managed Disks", "P10 ZRS Disk", 51.075),
     # --- Egress ---
     ("Bandwidth - Routing Preference: Internet", "Standard Data Transfer Out", 0.0),
     ("Rtn Preference: MGN", "Standard Inter-Region Data Transfer", 0.16),
@@ -146,6 +164,15 @@ EXIGE = [
     "Capacity Overage Capacity Usage CU",
     "Fabric Capacity Reservation",
     "OneLake Storage Hot Data Stored",
+    "oito gates de validação",
+    "Mesmo preço, unidade diferente",
+    "Serviços que não estão na Retail Prices API",
+    "Nenhuma linha some em silêncio",
+    "Todo número declarado vale o mesmo",
+    "Hot GRS Iterative Write Operations",
+    "Standard_D2s_v5",
+    "P10 LRS Disk Mount",
+    "CENÁRIO A",
 ]
 PROIBE = [
     # A instrucao que nao funciona: esse skuName nao existe na API.
@@ -153,6 +180,7 @@ PROIBE = [
     "F[N] Capacity",
     # Contradizia o Fabric, onde a reserva e 40,6% mais barata.
     "Nunca Reserved Instances ou Spot",
+    "sete gates de validação",
 ]
 
 
@@ -361,6 +389,52 @@ def conferir_armadilhas(rel: Relatorio, idx: dict, linhas: list[dict], completo:
                 hi < real)
 
 
+def conferir_unidades(rel: Relatorio, idx: dict, linhas: list[dict]) -> None:
+    """Gate 8: mesmo retailPrice, unitOfMeasure diferente — erro de 100x."""
+    rel.secao("gate 8: mesmo preco, unidade diferente")
+    P = "Azure Data Lake Storage Gen2 Hierarchical Namespace"
+    for normal, iterativo, preco in [
+        ("Hot Write Operations", "Hot Iterative Write Operations", 0.091),
+        ("Hot GRS Write Operations", "Hot GRS Iterative Write Operations", 0.182),
+    ]:
+        a = [r for r in idx[(P, normal)]]
+        b = [r for r in idx[(P, iterativo)]]
+        if not a or not b:
+            rel.chk(f"{normal} vs {iterativo}", False, "meter nao encontrado")
+            continue
+        rel.chk(f"'{normal}' e '{iterativo}' custam os dois {preco}",
+                a[0]["retailPrice"] == preco and b[0]["retailPrice"] == preco)
+        rel.chk(f"...mas a unidade difere: {a[0]['unitOfMeasure']} vs {b[0]['unitOfMeasure']}",
+                a[0]["unitOfMeasure"] != b[0]["unitOfMeasure"],
+                "a API igualou as unidades: o gate 8 perdeu o sentido, reveja a Skill")
+    dl = [r for r in idx[(P, "Delete Operations")]]
+    if dl:
+        rel.chk("'Delete Operations' custa 0,0 e nao tem irmao de tier maior (gate 3)",
+                dl[0]["retailPrice"] == 0.0 and not any(r["tierMinimumUnits"] > 0 for r in dl))
+
+    rel.secao("Virtual Machines: quanto do catalogo e armadilha")
+    vm = [r for r in linhas if r.get("serviceName") == "Virtual Machines"]
+    if not vm:
+        print("         (sem VMs na fonte — use --snapshot para esta conferencia)")
+        return
+    spot = len([r for r in vm if "Spot" in (r.get("skuName") or "")])
+    low = len([r for r in vm if "Low Priority" in (r.get("skuName") or "")])
+    win = len([r for r in vm if "Windows" in (r.get("productName") or "")])
+    ok = [r for r in vm if "Spot" not in (r.get("skuName") or "")
+          and "Low Priority" not in (r.get("skuName") or "")
+          and "Windows" not in (r.get("productName") or "")]
+    print(f"         {len(vm)} meters: {spot} Spot, {low} Low Priority, {win} Windows, "
+          f"{len(ok)} Linux pago ({round(len(ok)/len(vm)*100)}%)")
+    rel.chk("a maioria dos meters de VM nao serve para cotacao paga em Linux",
+            len(ok) / len(vm) < 0.5)
+    d2 = {r.get("skuName"): r["retailPrice"] for r in vm
+          if r.get("armSkuName") == "Standard_D2s_v5"
+          and "Windows" not in (r.get("productName") or "")}
+    rel.chk("Standard_D2s_v5 Linux pago = 0,153", d2.get("Standard_D2s_v5") == 0.153)
+    rel.chk("Standard_D2s_v5 Spot = 0,028274 (proibido pela regra de modelo de compra)",
+            d2.get("Standard_D2s_v5 Spot") == 0.028274)
+
+
 def conferir_skill(rel: Relatorio) -> None:
     rel.secao("consistencia da SKILL_unified.md")
     if not SKILL.exists():
@@ -409,6 +483,7 @@ def main(argv: list[str] | None = None) -> int:
     conferir_precos(rel, idx)
     conferir_fabric(rel, idx, args.timeout)
     conferir_armadilhas(rel, idx, linhas, completo)
+    conferir_unidades(rel, idx, linhas)
     conferir_skill(rel)
 
     print("\n" + "=" * 68)

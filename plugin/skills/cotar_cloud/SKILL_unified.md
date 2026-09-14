@@ -253,10 +253,88 @@ As camadas `Hot *` são escalonadas em três faixas: `tierMinimumUnits` 0, 51.20
 512.000 GB. Para volume acima de 50 TB, some por faixa — não aplique a primeira
 faixa ao volume inteiro.
 
-**Key Vault** — `serviceName = "Key Vault"`, 16 meters.
-`productName = "Key Vault"` para o comum; `Key Vault HSM Pool` /
-`Standard B1 Instance` custa 3,20 por hora (2.336,00/mês). Não ofereça HSM Pool sem
-o arquiteto ter pedido HSM dedicado.
+**Operações de ADLS Gen2.** Armazenamento é só metade da conta: ingestão em batch
+gera dezenas de milhões de operações/mês. Meters de `Hot LRS` e `Hot GRS`:
+
+| skuName | meterName | preço | **unidade** |
+| --- | --- | ---: | --- |
+| `Hot LRS` | `Hot Write Operations` | 0,091 | **10K** |
+| `Hot LRS` | `Hot Iterative Write Operations` | 0,091 | **100** |
+| `Hot LRS` | `Hot Iterative Read Operations` | 0,091 | **10K** |
+| `Hot GRS` | `Hot GRS Write Operations` | 0,182 | **10K** |
+| `Hot GRS` | `Hot GRS Iterative Write Operations` | 0,182 | **100** |
+| `Hot GRS` | `Hot GRS Iterative Read Operations` | 0,182 | **10K** |
+| `Hot LRS` e `Hot GRS` | `Hot Read Operations` | 0,0073 | 10K |
+| `Hot LRS` e `Hot GRS` | `Hot Other Operations` | 0,00728 | 10K |
+| `Hot LRS` e `Hot GRS` | `Delete Operations` | 0,0 | 10K |
+
+Três coisas nesta tabela são armadilha, e nenhuma é visível olhando só o preço:
+
+1. **`Iterative Write` cobra por 100, não por 10K** — mesmo preço da linha normal,
+   unidade 100× menor. Ver o gate 8.
+2. `Hot Read Operations` (0,0073) e `Hot Other Operations` (0,00728) são meters
+   diferentes com números quase iguais.
+3. `Delete Operations` custa 0,0 e **não** tem meter irmão de faixa maior — pelo
+   gate 3, é zero não justificado. Não some, e diga na premissa que não somou.
+
+Se o arquiteto não souber o volume de transações, diga que a linha existe e fica
+fora por falta de dado — não a omita em silêncio.
+
+**Máquinas virtuais** — `serviceName = "Virtual Machines"`, 6.775 meters, e a
+maioria não serve. Distribuição verificada:
+
+| Recorte | meters | % |
+| --- | ---: | ---: |
+| `skuName` contém `Spot` | 2.621 | 39% |
+| `skuName` contém `Low Priority` | 1.370 | 20% |
+| `productName` contém `Windows` | 3.243 | 48% |
+| **sobra: Linux pago normal** | **1.472** | **22%** |
+
+Filtro obrigatório para VM paga em Linux:
+
+```
+skuName    NÃO contém "Spot" nem "Low Priority"
+productName NÃO contém "Windows"
+skuName    = "Standard_D4s_v5"   ← formato ARM com underscore, não "D4s v5"
+```
+
+Exemplo do fator de erro em `Standard_D2s_v5`: 0,153 (Linux pago) contra 0,245
+(Windows), 0,0306 (Low Priority) e 0,028274 (Spot) — fator 5,4 entre o certo e o
+mais barato. Spot e Low Priority estão proibidos pela regra de modelo de compra.
+
+**Discos gerenciados** — `serviceName = "Storage"`,
+`productName = "Premium SSD Managed Disks"` (ou `Standard SSD ...`). VM com disco
+tem duas linhas, e existe um par que engana:
+
+| skuName | meterName | preço |
+| --- | --- | ---: |
+| `P10 LRS` | `P10 LRS Disk` | 34,05 / mês |
+| `P10 LRS` | `P10 LRS Disk Mount` | 1,82 / mês |
+| `P10 ZRS` | `P10 ZRS Disk` | 51,075 / mês |
+| `E10 LRS` | `E10 LRS Disk` | 17,92 / mês |
+
+`Disk` é o disco; `Disk Mount` é só a montagem em disco compartilhado. Fator 19
+entre os dois, e `Disk Mount` existe com **o mesmo 1,82** em toda família — um
+total montado só com `Disk Mount` fica barato e uniforme, o que parece plausível.
+
+Disco gerenciado cobra **por mês, não por hora de VM ligada**: em HML e Dev com
+VM em 200h, o disco continua custando o mês inteiro.
+
+**Key Vault** — `serviceName = "Key Vault"`, 16 meters. Lista completa:
+
+| productName | meterName | `tierMinimumUnits` | preço |
+| --- | --- | ---: | ---: |
+| `Key Vault` | `Operations` | 0 | 0,03 / 10K |
+| `Key Vault` | `Advanced Key Operations` | 0 | 0,15 / 10K |
+| `Key Vault` | `Automated Key Rotation` | 0 | 1,00 / rotação |
+| `Key Vault` | `Secret Renewal` | 0 | 1,00 / unidade |
+| `Key Vault` | `Certificate Renewal Request` | 0 | 3,00 / unidade |
+| `Key Vault` | `Premium HSM-protected RSA 2048-bit key` | 0 | 1,00 / chave |
+| `Key Vault` | `Premium HSM-protected Advanced Key` | 0 / 250 / 1.500 / 4.000 | 5,00 / 2,50 / 0,90 / 0,40 |
+| `Key Vault HSM Pool` | `Standard B1 Instance` | 0 | 3,20 / hora = 2.336,00/mês |
+
+Uso comum é só `Operations`: 200 mil operações/mês dão 0,60. Não ofereça
+`Key Vault HSM Pool` sem o arquiteto ter pedido HSM dedicado — são 2.336,00/mês.
 
 **Egress** — `serviceName = "Bandwidth"`. Duas séries paralelas por roteamento, o
 `productName` desambigua:
@@ -372,6 +450,81 @@ errada de ADLS passa batido nessa camada e só aparece em outra.
 
 A única defesa é fixar o meter pelos cinco campos na hora da busca, não conferir o
 número depois.
+
+**8. Mesmo preço, unidade diferente — erro de 100×.** A pior das colisões, porque
+os dois números batem e só a unidade separa:
+
+| meterName | `retailPrice` | `unitOfMeasure` |
+| --- | ---: | --- |
+| `Hot GRS Write Operations` | 0,182 | **10K** |
+| `Hot GRS Iterative Write Operations` | 0,182 | **100** |
+| `Hot Write Operations` (LRS) | 0,091 | **10K** |
+| `Hot Iterative Write Operations` (LRS) | 0,091 | **100** |
+
+50 milhões de escritas dão 910,00 pelo meter certo e **91.000,00** pelo irmão
+iterativo. Conferir o preço unitário não pega: é 0,182 nos dois.
+
+Regra: **sempre leia `unitOfMeasure` junto com `retailPrice`** e mostre a unidade
+na conta aberta (`50.000.000 ÷ 10K × 0,182`), nunca só o produto final. A conta
+aberta com a unidade explícita é o que torna o erro visível na revisão.
+
+Isto vale para todo meter de operação, não só ADLS. A exceção conhecida é a linha
+de reserva, onde `unitOfMeasure` mente — ver o gate 4.
+
+### Serviços que não estão na Retail Prices API
+
+A API cobre consumo Azure. Ela **não** cobre licença de usuário, produto M365, nem
+software de terceiro. Casos que aparecem nestas propostas:
+
+| Item | Onde vive | Na estimativa |
+| --- | --- | --- |
+| Power BI Pro / PPU (licença por usuário) | licenciamento M365 | linha separada, sem valor |
+| Microsoft Fabric F SKU | calculado por CU | ver a seção Fabric |
+| Private Link / Private Endpoint | não existe meter | premissa sem valor |
+| Snowflake, Databricks fora do Azure | fornecedor | fora do escopo |
+
+**Nunca ponha preço de memória nestas linhas.** Nem em tabela de comparação, nem em
+"próximos passos", nem entre parênteses. Se o valor não veio da API nesta conversa,
+ele não tem número — tem nome e um encaminhamento:
+
+```
+⚠️ Power BI Pro — licenciamento M365, fora da Retail Prices API.
+   [N] usuários. Preço a confirmar com o parceiro M365.
+   Não incluído em nenhum total desta estimativa.
+```
+
+Isso vale especialmente quando a licença **decide a arquitetura**. A regra de que
+capacidade F64 ou maior dispensa licença Pro individual para quem só consome é
+real, e muda a escolha do F SKU — mas a comparação entre "F32 mais N licenças" e
+"F64 sem licença" só pode ser feita com o preço de licença que o parceiro
+confirmar. Apresente a estrutura da decisão ao arquiteto e deixe o número em
+aberto; não feche a recomendação com um preço de licença que você não verificou.
+
+Se o arquiteto insistir num número para seguir a conversa, use o que ele der e
+registre a origem na premissa: "licença a $X/usuário, valor informado pelo
+arquiteto, não verificado na API".
+
+### Nenhuma linha some em silêncio
+
+Duas regras que andam juntas:
+
+1. **Todo serviço em "Serviços incluídos" tem que ter valor em algum total.** Se
+   você decidiu não cotar uma linha por ser pequena, ela sai das duas listas ou
+   entra nas duas. "Key Vault incluído" com 0,00 no total é contradição.
+2. **Se uma linha fica fora por falta de dado, diga.** Falta de informação vira
+   premissa declarada, não omissão.
+
+### Todo número declarado vale o mesmo
+
+A disciplina de verificação vale para **qualquer** número que sai na resposta, não
+só para a tabela principal. Número em "próximos passos", em comparação lateral, em
+"isso pode derrubar ~$X", em texto solto — todos valem uma afirmação para o
+cliente, e todos precisam ser calculados, não estimados de cabeça.
+
+Se for citar uma economia possível, calcule: trocar 8.192 GB de OneLake Hot
+(0,0407) para Cool (0,0221) economiza `8192 × 0,0186 = 152,37`, não "uns 180".
+Arredondar para cima uma economia que você não calculou é o mesmo defeito que a
+Skill inteira tenta evitar, só que num lugar onde ninguém confere.
 
 ### Premissa de data do preço
 
@@ -549,7 +702,7 @@ uma única vez, fora dos grupos.
 
 **Antes de qualquer busca, aplique a seção
 "Resolução de preço Azure — regras obrigatórias"** (chave de cinco campos,
-allowlist e os sete gates de validação). O MCP não valida intenção: busca mal
+allowlist e os oito gates de validação). O MCP não valida intenção: busca mal
 formada devolve preço plausível e errado.
 
 Use as tools na sequência para cada serviço da arquitetura:
@@ -586,6 +739,21 @@ prevalece sobre esta:
 armazenado o mês inteiro, nos três ambientes. Reduza o **volume** em HML e Dev
 (~30% e ~10% do volume de produção é ponto de partida razoável), nunca as horas.
 Aplicar 200h/mês a uma linha de storage subestima em ~3,6×.
+
+**Linha que não é hora nem volume escala junto com o que a gera.** Operações de
+ADLS, operações de Key Vault e egress não têm "horas" nem "GB armazenados". Use a
+mesma proporção do volume do ambiente (~30% em HML, ~10% em Dev) e declare que foi
+proporção assumida, não medição. Duas consequências que aparecem sozinhas:
+
+- Egress de HML e Dev quase sempre cai abaixo dos 100 GB gratuitos, indo a 0,00.
+  Esse zero é legítimo — diga que é faixa gratuita, para não parecer linha
+  esquecida.
+- Disco gerenciado **não** escala: é cobrado por mês inteiro nos três ambientes,
+  mesmo com a VM em 200h.
+
+**Quando não há tier abaixo.** `Standard_D2s_v5` já é o menor da série Dsv5. Nesse
+caso mantenha o hardware, reduza só as horas, e diga isso na premissa — não troque
+de série para conseguir um número menor.
 
 **Modelo de compra — regra por serviço, não global:**
 
@@ -950,6 +1118,30 @@ Vector Search, serviços em preview.
    ──────────────────────────────
    Total Azure:     $X.XXX/mês
 
+[Se houver Fabric, ou qualquer serviço com dois modelos de compra, use dois
+ cenários em vez de um total só — nunca escolha um modelo em silêncio:]
+
+   CENÁRIO A — produção SOB DEMANDA
+   Produção:        $X.XXX/mês
+   Homologação:     $X.XXX/mês
+   Desenvolvimento: $X.XXX/mês
+   ──────────────────────────────
+   Total Azure:     $X.XXX/mês
+
+   CENÁRIO B — produção com RESERVA de 1 ano (HML e Dev seguem sob demanda)
+   Produção:        $X.XXX/mês
+   Homologação:     $X.XXX/mês
+   Desenvolvimento: $X.XXX/mês
+   ──────────────────────────────
+   Total Azure:     $X.XXX/mês
+
+   Diferença: $X.XXX/mês  |  Compromisso anual da reserva: $XX.XXX
+
+[Itens fora da Retail Prices API vão abaixo dos totais, SEM valor e SEM entrar
+ em nenhuma soma:]
+   ⚠️ Fora dos totais: [licenças Power BI Pro, Private Endpoint, ...]
+      — a confirmar com o parceiro
+
 [Se houver Databricks:]
 🔷 Databricks on Azure (incluído no total acima):
    Compute: $XXX/mês | DBU: $XXX/mês
@@ -994,5 +1186,17 @@ Vector Search, serviços em preview.
   `reservationTerm`
 - **Não entregar Fabric sem OneLake** — capacidade e armazenamento são duas
   parcelas obrigatórias
+- **Não usar meter fora da allowlist** — se o serviço que você precisa cotar não
+  está lá, diga que falta, não improvise
+- **Não ler `retailPrice` sem `unitOfMeasure`** — `Iterative Write Operations`
+  cobra por 100 e a irmã por 10K, pelo mesmo preço: erro de 100×
+- **Não cotar VM sem filtrar Spot, Low Priority e Windows** — são 78% dos meters
+  de Virtual Machines
+- **Não pôr preço de licença de memória** — Power BI Pro e M365 não estão na
+  Retail Prices API; entram sem valor, a confirmar com o parceiro
+- **Não listar serviço que não foi cotado** — se está em "Serviços incluídos",
+  tem valor em algum total
+- **Não estimar de cabeça número secundário** — economia citada em "próximos
+  passos" vale o mesmo que a tabela principal e precisa ser calculada
 - **Não assumir região sem confirmar** — especialmente para clientes de setores regulados
 - **Não gerar sem confirmar (Fase 5)** — o resumo evita retrabalho
