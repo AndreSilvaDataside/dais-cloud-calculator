@@ -276,6 +276,8 @@ Samuel, Arthur e André trocam o MCP próprio pelo
 | **Natália** | Reescrever a camada Azure da Skill: Fabric calculado por CU, chave de resolução de cinco campos, allowlist por serviço, oito gates de validação, separação clássico/serverless em Databricks |    ✅    |
 | **Natália** | `tools/sonda_catalogo.py` e `tools/valida_precos.py`: verificação dos preços da Skill contra a Retail Prices API |    ✅    |
 | **Natália** | Teste ponta a ponta em três cenários (Fabric, Databricks, ADLS + Private Endpoint) e correção das lacunas achadas |    ✅    |
+| **Natália** | Documentar o que o MCP realmente devolve — ele não expõe `meterName` nem `tierMinimumUnits`, então a allowlist é a fonte de preço; mais 9 serviços na allowlist |    ✅    |
+| **Natália** | Carimbar a região na allowlist: os preços são de `brazilsouth` e não há fator de correção regional |    ✅    |
 | **André**   | Cadastrar as 5 arquiteturas padrão Dataside para Azure na Skill                                                  |    ✅    |
 | **Cauã**    | Validar os padrões cadastrados contra as referências de arquitetura                                              |          |
 | **Samuel**  | Corrigir README e cronograma; registrar por escrito a decisão sobre o link e o escopo                            |          |
@@ -283,11 +285,25 @@ Samuel, Arthur e André trocam o MCP próprio pelo
 
 #### Bloco 3 — Fechamento e entrega · 17/09 – 18/09
 
+> **Proposta de antecipação da demo para 16/09.** O desenvolvimento acabou e está
+> mergeado no `develop`, e a preparação da demo já tem roteiro ensaiado com números
+> conferidos ([ROTEIRO-DEMO.md](ROTEIRO-DEMO.md)). A demo não depende mais de nada
+> em aberto — não é apertar prazo de ninguém, é que a dependência caiu.
+
 | Membro                      | Tarefa                                                                                             | Cumprido |
 | --------------------------- | ---------------------------------------------------------------------------------------------------- | :------: |
-| **Natália**                 | Retestar a Skill com as arquiteturas Azure cadastradas — o caminho da Fase 3 que escolhe padrão Dataside só ficou ativo em 14/09 e ainda não foi exercitado |          |
-| **Natália + Cauã**          | Testar as arquiteturas cadastradas ponta a ponta e ajustar a Skill conforme o resultado             |          |
+| **Natália**                 | Retestar a Skill com as arquiteturas Azure cadastradas — 6 cenários, 6 acertos, incluindo o par difícil (Arq 1 × Arq 5) e um que corretamente não casou com padrão nenhum |    ✅    |
+| **Natália**                 | Preparar o roteiro de demo: cenário ensaiado, 22 linhas conferidas, tempo medido por etapa          |    ✅    |
+| **Cauã**                    | Validar as arquiteturas cadastradas contra as referências de arquitetura                            |          |
 | **André**                   | Resolver o modelo de instalação da Skill: `.gitignore` ignora `.claude/`, então a cópia executada não é versionada e precisa ser refeita a cada edição |          |
 | **Todos**                   | Confirmar com o arquiteto se Azure Data Factory e Power BI entram nas propostas                     |          |
-| **Samuel + Arthur + André** | Preparar a demo                                                                                     |          |
+| **Samuel + Arthur + André** | Apresentar a demo (roteiro pronto)                                                                  |          |
 | **Todos**                   | Revisão final e lançamento de horas no Dataflow                                                     |          |
+
+**O que ainda pode mexer na entrega:** a confirmação do arquiteto sobre Azure Data
+Factory e Power BI. Se Power BI entrar nas propostas, muda o formato de saída da
+Skill. É a única pendência que altera código — as outras são validação, instalação
+e processo. Vindo essa resposta, **18/09 pode fechar em 17/09**.
+
+**O que não depende do time:** a resposta do arquiteto de soluções (avaliador
+externo) e o booking no Dataflow. Encurtar prazo não acelera nenhuma das duas.
