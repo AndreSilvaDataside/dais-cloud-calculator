@@ -287,9 +287,7 @@ Samuel, Arthur e André trocam o MCP próprio pelo
 
 > **Proposta de antecipação da demo para 16/09.** O desenvolvimento acabou e está
 > mergeado no `develop`, e a preparação da demo já tem roteiro ensaiado com números
-> conferidos ([ROTEIRO-DEMO.md](ROTEIRO-DEMO.md)). A demo não depende mais de nada
-> em aberto — não é apertar prazo de ninguém, é que a dependência caiu.
-
+> conferidos ([ROTEIRO-DEMO.md](ROTEIRO-DEMO.md))
 | Membro                      | Tarefa                                                                                             | Cumprido |
 | --------------------------- | ---------------------------------------------------------------------------------------------------- | :------: |
 | **Natália**                 | Retestar a Skill com as arquiteturas Azure cadastradas — 6 cenários, 6 acertos, incluindo o par difícil (Arq 1 × Arq 5) e um que corretamente não casou com padrão nenhum |    ✅    |
