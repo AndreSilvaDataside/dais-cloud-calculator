@@ -244,6 +244,10 @@ EXIGE = [
     "Azure Data Factory v2",
     "Microsoft Purview Data Governance",
     "S2` | 500,00",
+    "A allowlist inteira é de `brazilsouth`",
+    "Não existe fator de correção regional",
+    "Os preços desta tabela não são verificados",
+    "Allowlist por serviço — `brazilsouth`",
 ]
 PROIBE = [
     # A instrucao que nao funciona: esse skuName nao existe na API.
@@ -506,6 +510,71 @@ def conferir_unidades(rel: Relatorio, idx: dict, linhas: list[dict]) -> None:
             d2.get("Standard_D2s_v5 Spot") == 0.028274)
 
 
+# Comparacao regional afirmada na Skill: (serviceName, productName, meterName,
+# brazilsouth, eastus, westeurope). None = nao conferido nessa regiao.
+REGIONAL = [
+    ("Microsoft Fabric", "Fabric Capacity", "Data Warehouse Capacity Usage CU", 0.28, 0.18, 0.22),
+    ("Microsoft Fabric", "OneLake", "OneLake Storage Hot Data Stored", 0.0407, 0.026, 0.024),
+    ("Storage", "Azure Data Lake Storage Gen2 Hierarchical Namespace", "Hot LRS Data Stored", 0.0326, 0.0208, 0.0196),
+    ("Storage", "Azure Data Lake Storage Gen2 Hierarchical Namespace", "Hot Write Operations", 0.091, 0.065, 0.0702),
+    ("Azure Databricks", "Azure Databricks Regional", "Premium Serverless SQL DBU", 1.09, 0.7, 0.91),
+    ("Azure Databricks", "Azure Databricks", "Premium Jobs Compute DBU", 0.3, 0.3, 0.3),
+    ("Azure Databricks", "Azure Databricks", "Premium All-purpose Compute DBU", 0.55, 0.55, 0.55),
+    ("Key Vault", "Key Vault", "Operations", 0.03, 0.03, 0.03),
+    ("Key Vault", "Key Vault HSM Pool", "Standard B1 Instance", 3.2, 3.2, 3.2),
+]
+
+
+def conferir_regioes(rel: Relatorio, timeout: int) -> None:
+    """A allowlist e de brazilsouth. Confere a tabela de comparacao regional.
+
+    Se a Azure equalizar os precos entre regioes, estas conferencias falham e a
+    Skill precisa ser revista: o aviso de 56% deixaria de ser verdade.
+    """
+    rel.secao("comparacao regional (a allowlist vale so em brazilsouth)")
+    cache = {}
+    for svc in {r[0] for r in REGIONAL}:
+        for rg in ("eastus", "westeurope"):
+            itens, _, erro = buscar(montar_filtro(service=svc, region=rg, price_type="Consumption"),
+                                    max_paginas=30, timeout=timeout)
+            if erro:
+                print(f"  AVISO  {svc}/{rg}: {erro}", file=sys.stderr)
+            cache[(svc, rg)] = itens
+
+    def preco_em(svc, pn, mn, rg):
+        for r in cache[(svc, rg)]:
+            if (r.get("productName") == pn and r.get("meterName") == mn
+                    and r.get("tierMinimumUnits") == 0):
+                return r.get("retailPrice")
+        return None
+
+    iguais, variam = 0, 0
+    for svc, pn, mn, br, us, eu in REGIONAL:
+        g_us, g_eu = preco_em(svc, pn, mn, "eastus"), preco_em(svc, pn, mn, "westeurope")
+        rel.chk(f"{mn} em eastus = {us}", g_us == us,
+                "nao encontrado" if g_us is None else f"API devolve {g_us}")
+        rel.chk(f"{mn} em westeurope = {eu}", g_eu == eu,
+                "nao encontrado" if g_eu is None else f"API devolve {g_eu}")
+        if br == us == eu:
+            iguais += 1
+        else:
+            variam += 1
+    print(f"         {variam} meters variam por regiao, {iguais} sao iguais no mundo todo")
+    rel.chk("existem meters que variam E meters que nao variam (nao ha fator unico)",
+            variam > 0 and iguais > 0,
+            "o padrao mudou: a regra de regiao da Skill precisa ser revista")
+    fab_br = 0.28
+    fab_us = preco_em("Microsoft Fabric", "Fabric Capacity", "Data Warehouse Capacity Usage CU", "eastus")
+    if fab_us:
+        delta = round((fab_br / fab_us - 1) * 100)
+        print(f"         Fabric: brazilsouth e {delta}% mais caro que eastus")
+        rel.chk("Skill afirma que Fabric custa 56% mais em brazilsouth", delta == 56,
+                f"calculado {delta}%")
+        f64_br, f64_us = round(64 * fab_br * 730, 2), round(64 * fab_us * 730, 2)
+        rel.chk(f"F64: {f64_br} em brazilsouth contra {f64_us} em eastus",
+                f64_br == 13081.6 and f64_us == 8409.6)
+
+
 def conferir_skill(rel: Relatorio) -> None:
     rel.secao("consistencia da SKILL_unified.md")
     if not SKILL.exists():
@@ -519,7 +588,7 @@ def conferir_skill(rel: Relatorio) -> None:
                 "instrucao que nao funciona voltou ao arquivo")
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None) -> int:  # noqa: C901
     p = argparse.ArgumentParser(
         description="Confere os precos afirmados na SKILL contra a Retail Prices API",
         epilog="Falha nao e necessariamente bug: pode ser preco que a Azure mudou. "
@@ -555,6 +624,7 @@ def main(argv: list[str] | None = None) -> int:
     conferir_fabric(rel, idx, args.timeout)
     conferir_armadilhas(rel, idx, linhas, completo)
     conferir_unidades(rel, idx, linhas)
+    conferir_regioes(rel, args.timeout)
     conferir_skill(rel)
 
     print("\n" + "=" * 68)
