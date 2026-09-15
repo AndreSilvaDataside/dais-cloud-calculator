@@ -131,6 +131,10 @@ python tools/sonda_catalogo.py probe --service "Microsoft Fabric" --price-type R
 Rodar antes de apresentar ao cliente, antes de aprovar PR que mexa em número, e
 antes de pôr valor em slide. Detalhes em [tools/README.md](tools/README.md).
 
+Para apresentar, o [roteiro de demo](ROTEIRO-DEMO.md) traz um cenário ensaiado com
+os números já conferidos, as respostas a dar, o tempo esperado de cada etapa e o
+que fazer se algo sair diferente.
+
 Falha não é necessariamente bug: se a Azure mudou um preço, a conferência falha e
 está certa em falhar — o aviso é de que uma tabela da Skill envelheceu.
 

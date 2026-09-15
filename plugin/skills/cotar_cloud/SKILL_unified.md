@@ -497,10 +497,65 @@ São 1.983 `meterName` com hífen no snapshot. Procedimento:
 3. Exija **correspondência exata** após a normalização. Nunca aceite
    correspondência parcial ou "contém".
 
-### Allowlist por serviço
+### A allowlist inteira é de `brazilsouth`
+
+**Todo preço desta seção foi verificado em `brazilsouth` e vale só lá.** Confirme a
+região com o arquiteto **antes** de usar qualquer número daqui.
+
+Não existe fator de correção regional. Comparação verificada na API:
+
+| meter | `brazilsouth` | `eastus` | `westeurope` |
+| --- | ---: | ---: | ---: |
+| Fabric `* Capacity Usage CU` | 0,28 | 0,18 | 0,22 |
+| `OneLake Storage Hot Data Stored` | 0,0407 | 0,026 | 0,024 |
+| ADLS `Hot LRS Data Stored` | 0,0326 | 0,0208 | 0,0196 |
+| ADLS `Hot Write Operations` | 0,091 | 0,065 | 0,0702 |
+| Databricks `Premium Serverless SQL DBU` | 1,09 | 0,70 | 0,91 |
+| Databricks `Premium Jobs Compute DBU` | 0,30 | 0,30 | 0,30 |
+| Databricks `Premium All-purpose Compute DBU` | 0,55 | 0,55 | 0,55 |
+| Key Vault `Operations` | 0,03 | 0,03 | 0,03 |
+| Key Vault HSM Pool `Standard B1 Instance` | 3,20 | 3,20 | 3,20 |
+
+Duas coisas a tirar desta tabela:
+
+1. **Alguns meters variam e outros não.** Databricks clássico e Key Vault custam o
+   mesmo no mundo inteiro; Fabric, OneLake, ADLS e Databricks serverless variam.
+   Aplicar um desconto uniforme erraria as duas metades ao mesmo tempo.
+2. **Nem a direção é consistente.** OneLake é mais barato em `westeurope` (0,024) que
+   em `eastus` (0,026), enquanto a capacidade Fabric é mais **cara** em `westeurope`
+   (0,22) que em `eastus` (0,18). Não dá para inferir de uma linha para a outra.
+
+Em `brazilsouth` a capacidade Fabric é **56% mais cara** que em `eastus`. Um F64
+cotado com a tabela desta Skill para um cliente em `eastus` sairia a 13.081,60/mês
+em vez de 8.409,60 — e a capacidade costuma ser a maior linha da proposta.
+
+**Procedimento fora de `brazilsouth`:**
+
+```
+1. Diga ao arquiteto que a tabela de referência é de brazilsouth.
+2. Reconfirme cada preço na região dele com azure_price_search (region: <regiao>).
+   O MCP não fecha a chave de cinco campos, mas serve para ver se o valor bate
+   com a allowlist ou não.
+3. Onde bater, use. Onde divergir, use o valor da região e declare na premissa
+   que veio de consulta direta, não da tabela de referência.
+4. Se não conseguir confirmar, a linha sai sem valor. Não use o preço de
+   brazilsouth "como aproximação" — em Fabric o erro é de 56%.
+```
+
+E a premissa de saída passa a declarar a região da tabela, não só a da cotação:
+
+```
+📌 Preços: Azure Retail Prices API, consulta de [DD/MM/AAAA], região [região].
+   [Se a região não for brazilsouth:] valores reconfirmados na região do cliente;
+   a tabela de referência da Skill é de brazilsouth e não foi usada diretamente.
+```
+
+### Allowlist por serviço — `brazilsouth`
 
 Só use meter que esteja nesta lista. Meter fora da lista é sinal de resolução
 errada — volte um passo e estreite a busca.
+
+**Os preços abaixo são de `brazilsouth`.** Fora dessa região, ver a seção anterior.
 
 **Microsoft Fabric** (`serviceFamily = "Data"`, não `Analytics`)
 
@@ -1342,11 +1397,28 @@ O custo é composto por duas partes:
 
 **Sempre forneça a estimativa de DBU.** Apresente a conta aberta.
 
-| Tipo de cluster     | DBU/hora por nó | Preço/DBU (sa-east-1) |
-|---------------------|-----------------|------------------------|
-| Jobs Compute        | 1.0 DBU         | ~$0.20                 |
-| All-Purpose Compute | 1.0 DBU         | ~$0.40                 |
-| Jobs Compute Light  | 0.5 DBU         | ~$0.20                 |
+> ⚠️ **Os preços desta tabela não são verificados.** O lado AWS está congelado
+> fora do escopo da entrega atual, e o preço de DBU do Databricks na AWS **não**
+> está na Azure Retail Prices API — `tools/valida_precos.py` não alcança estes
+> números, e nenhuma ferramenta deste repositório os confere.
+>
+> Os valores abaixo são aproximações herdadas (repare nos tis), de data
+> desconhecida. Trate-os como ordem de grandeza, não como preço.
+>
+> **Antes de pôr qualquer um deles numa proposta**, confirme em
+> `databricks.com/product/pricing` e anexe o print, como os próximos passos da
+> saída AWS já pedem. Se o valor divergir, use o do site e declare a origem na
+> premissa.
+
+| Tipo de cluster     | DBU/hora por nó | Preço/DBU (sa-east-1) | Verificado |
+|---------------------|-----------------|------------------------|:----------:|
+| Jobs Compute        | 1.0 DBU         | ~$0.20                 | não |
+| All-Purpose Compute | 1.0 DBU         | ~$0.40                 | não |
+| Jobs Compute Light  | 0.5 DBU         | ~$0.20                 | não |
+
+Contraste, para calibrar a confiança: a tabela equivalente de Databricks **on
+Azure**, na Fase 7, tem preço exato e conferido contra a API a cada execução de
+`tools/valida_precos.py`. Esta aqui não tem nada disso.
 
 Fórmula: `DBU/hora × nº de nós × horas/mês × preço/DBU`
 
@@ -1619,5 +1691,7 @@ Vector Search, serviços em preview.
   tem valor em algum total
 - **Não estimar de cabeça número secundário** — economia citada em "próximos
   passos" vale o mesmo que a tabela principal e precisa ser calculada
+- **Não usar a allowlist fora de `brazilsouth`** — Fabric custa 56% mais aqui que
+  em `eastus`, e não há fator de correção: alguns meters variam, outros não
 - **Não assumir região sem confirmar** — especialmente para clientes de setores regulados
 - **Não gerar sem confirmar (Fase 5)** — o resumo evita retrabalho
