@@ -1,8 +1,7 @@
 {
   "name": "dais-cloud-calculator",
   "owner": {
-    "name": "Dataside Data & AI Team",
-    "email": ""
+    "name": "Dataside DAIS"
   },
   "plugins": [
     {

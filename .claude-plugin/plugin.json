@@ -4,7 +4,7 @@
   "version": "2.0.0",
   "description": "Generates cloud cost estimates for AWS and Azure through guided architect conversations. Creates official AWS calculator links and detailed Azure pricing breakdowns.",
   "author": {
-    "name": "Dataside Data & AI Team"
+    "name": "Dataside DAIS"
   },
   "homepage": "https://github.com/AndreSilvaDataside/dais-cloud-calculator",
   "repository": "https://github.com/AndreSilvaDataside/dais-cloud-calculator",
