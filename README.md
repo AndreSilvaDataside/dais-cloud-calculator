@@ -7,54 +7,9 @@ Skill para Claude Code que gera estimativas de custo em nuvem a partir de uma co
 
 ---
 
-## ⚡ Instalação Rápida (Plugin - 1 minuto)
+## Instalação
 
-**Método recomendado:** Use o plugin via GitHub URL.
-
-### Pré-requisitos
-
-- Claude Desktop ou Claude Code (extensão VS Code)
-
-### Passos
-
-1. **Abra o arquivo de configuração do Claude:**
-   - **macOS/Linux:** `~/.claude/claude_config.json`
-   - **Windows:** `C:\Users\[SEU_USUARIO]\AppData\Roaming\Claude\claude_config.json`
-
-2. **Adicione este bloco ao arquivo:**
-
-   ```json
-   {
-     "plugins": [
-       {
-         "id": "dataside-pricing-calculator",
-         "name": "Dataside Cloud Pricing Calculator",
-         "plugin_url": "https://raw.githubusercontent.com/AndreSilvaDataside/dais-cloud-calculator/main/plugin/plugin.json",
-         "enabled": true
-       }
-     ]
-   }
-   ```
-
-3. **Reinicie o Claude** (feche e abra novamente)
-
-4. **Teste:**
-
-   ```
-   /cotar_cloud
-
-   Quero cotar um lakehouse com Databricks para um cliente de varejo. Usa AWS.
-   ```
-
-### ✅ Pronto!
-
-Nenhuma dependência externa, nenhuma clonagem de repo, nenhuma aprovação de MCP — tudo já vem incluído.
-
----
-
-## 📖 Instalação Alternativa (Manual)
-
-Se preferir clonar o repositório e instalar manualmente (requer Node.js, Python, `uv`), veja [plugin/INSTALL.md](plugin/INSTALL.md) — seção "Instalação Manual (Legacy)".
+Veja [.claude-plugin/INSTALL.md](.claude-plugin/INSTALL.md) para o passo a passo completo de instalação (CLI, extensão VS Code e app Desktop do Claude) e pré-requisitos.
 
 ---
 
@@ -176,8 +131,7 @@ time, ainda não decidida — ver `tools/README.md`.
 
 ### Plugin e Distribuição
 
-- **Plugin URL:** https://raw.githubusercontent.com/AndreSilvaDataside/dais-cloud-calculator/main/plugin/plugin.json
-- **Repositório GitHub:** https://github.com/AndreSilvaDataside/dais-cloud-calculator
+- **Marketplace/Repositório GitHub:** https://github.com/AndreSilvaDataside/dais-cloud-calculator (instalação: [.claude-plugin/INSTALL.md](.claude-plugin/INSTALL.md))
 
 ### MCPs Integrados
 
@@ -311,7 +265,7 @@ Samuel, Arthur e André trocam o MCP próprio pelo
 | **Natália**                 | Retestar a Skill com as arquiteturas Azure cadastradas — 6 cenários, 6 acertos, incluindo o par difícil (Arq 1 × Arq 5) e um que corretamente não casou com padrão nenhum |    ✅    |
 | **Natália**                 | Preparar o roteiro de demo: cenário ensaiado, 22 linhas conferidas, tempo medido por etapa                                                                                |    ✅    |
 | **Cauã**                    | Validar as arquiteturas cadastradas contra as referências de arquitetura                                                                                                  |          |
-| **André**                   | Resolver o modelo de instalação da Skill: `.gitignore` ignora `.claude/`, então a cópia executada não é versionada e precisa ser refeita a cada edição                    |          |
+| **André**                   | Resolver o modelo de instalação da Skill: `.gitignore` ignora `.claude/`, então a cópia executada não é versionada e precisa ser refeita a cada edição — resolvido no Bloco 4 (empacotado como plugin) |    ✅    |
 | **Todos**                   | Confirmar com o arquiteto se Azure Data Factory e Power BI entram nas propostas                                                                                           |          |
 | **Samuel + Arthur + André** | Apresentar a demo (roteiro pronto)                                                                                                                                        |          |
 | **Todos**                   | Revisão final e lançamento de horas no Dataflow                                                                                                                           |          |
@@ -323,3 +277,22 @@ e processo. Vindo essa resposta, **18/09 pode fechar em 17/09**.
 
 **O que não depende do time:** a resposta do arquiteto de soluções (avaliador
 externo) e o booking no Dataflow. Encurtar prazo não acelera nenhuma das duas.
+
+---
+
+#### Bloco 4 — Empacotamento como plugin do Claude Code · 20/09 – 20/09
+
+| Membro    | Tarefa                                                                                                                                | Cumprido |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------- | :------: |
+| **André** | Reestruturar o projeto como plugin do Claude Code: `.claude-plugin/plugin.json` e `.claude-plugin/marketplace.json` na raiz do repositório | ✅ |
+| **André** | Migrar `skills/cotar_cloud/SKILL_unified.md` para `skills/cotar_cloud/SKILL.md` (nome exigido pelo Claude Code), com `name: cotar_cloud` fixo no frontmatter para manter a invocação estável | ✅ |
+| **André** | Mover a configuração dos MCP servers (AWS via `npx`, Azure via `uvx`) do antigo `.mcp.json` para `mcpServers` dentro do `plugin.json` | ✅ |
+| **André** | Corrigir erro de validação do manifesto na instalação (`repository` precisa ser string, não objeto no estilo `package.json`) | ✅ |
+| **André** | Reescrever `.claude-plugin/INSTALL.md` com o fluxo real de instalação: CLI (`/plugin marketplace add` + `/plugin install`), extensão VS Code (`/plugins`) e aba "Code" do app Desktop do Claude | ✅ |
+| **André** | Testar a instalação de ponta a ponta a partir do caminho local do projeto: `/plugin marketplace add` + `/plugin install`, com `/mcp` confirmando `aws-pricing-calculator` e `azure-pricing-mcp` como *Connected* | ✅ |
+
+**Fecha em 20/09.** Resolve a pendência do Bloco 3 sobre o modelo de instalação da Skill —
+o projeto agora é instalado como plugin versionado do Claude Code (CLI, VS Code e app Desktop),
+sem cópia manual do skill a cada edição. Falta publicar (`git push`) e testar a instalação a
+partir do repositório remoto no GitHub, em vez do caminho local.
+
