@@ -1,0 +1,39 @@
+{
+  "name": "dais-cloud-calculator",
+  "displayName": "Dataside Cloud Pricing Calculator",
+  "version": "2.0.0",
+  "description": "Generates cloud cost estimates for AWS and Azure through guided architect conversations. Creates official AWS calculator links and detailed Azure pricing breakdowns.",
+  "author": {
+    "name": "Dataside Data & AI Team"
+  },
+  "homepage": "https://github.com/AndreSilvaDataside/dais-cloud-calculator",
+  "repository": "https://github.com/AndreSilvaDataside/dais-cloud-calculator",
+  "keywords": [
+    "pricing",
+    "cloud",
+    "aws",
+    "azure",
+    "databricks",
+    "cost-estimation",
+    "architecture"
+  ],
+  "mcpServers": {
+    "aws-pricing-calculator": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "sample-aws-pricing-calculator-mcp"
+      ]
+    },
+    "azure-pricing-mcp": {
+      "command": "uvx",
+      "args": [
+        "--with",
+        "mcp<2",
+        "--from",
+        "git+https://github.com/msftnadavbh/AzurePricingMCP",
+        "azure-pricing-mcp"
+      ]
+    }
+  }
+}

@@ -7,9 +7,54 @@ Skill para Claude Code que gera estimativas de custo em nuvem a partir de uma co
 
 ---
 
-## Como rodar
+## ⚡ Instalação Rápida (Plugin - 1 minuto)
 
-Veja [plugin/INSTALL.md](plugin/INSTALL.md).
+**Método recomendado:** Use o plugin via GitHub URL.
+
+### Pré-requisitos
+
+- Claude Desktop ou Claude Code (extensão VS Code)
+
+### Passos
+
+1. **Abra o arquivo de configuração do Claude:**
+   - **macOS/Linux:** `~/.claude/claude_config.json`
+   - **Windows:** `C:\Users\[SEU_USUARIO]\AppData\Roaming\Claude\claude_config.json`
+
+2. **Adicione este bloco ao arquivo:**
+
+   ```json
+   {
+     "plugins": [
+       {
+         "id": "dataside-pricing-calculator",
+         "name": "Dataside Cloud Pricing Calculator",
+         "plugin_url": "https://raw.githubusercontent.com/AndreSilvaDataside/dais-cloud-calculator/main/plugin/plugin.json",
+         "enabled": true
+       }
+     ]
+   }
+   ```
+
+3. **Reinicie o Claude** (feche e abra novamente)
+
+4. **Teste:**
+
+   ```
+   /cotar_cloud
+
+   Quero cotar um lakehouse com Databricks para um cliente de varejo. Usa AWS.
+   ```
+
+### ✅ Pronto!
+
+Nenhuma dependência externa, nenhuma clonagem de repo, nenhuma aprovação de MCP — tudo já vem incluído.
+
+---
+
+## 📖 Instalação Alternativa (Manual)
+
+Se preferir clonar o repositório e instalar manualmente (requer Node.js, Python, `uv`), veja [plugin/INSTALL.md](plugin/INSTALL.md) — seção "Instalação Manual (Legacy)".
 
 ---
 
@@ -117,62 +162,34 @@ time, ainda não decidida — ver `tools/README.md`.
 
 ---
 
-## Verificação de preço
-
-Toda tabela de preço dentro da Skill é uma afirmação sobre a Retail Prices API.
-Duas ferramentas em [`tools/`](tools/) permitem reconferir em um comando, sem
-dependência externa:
-
-```bash
-python tools/valida_precos.py              # confere a Skill contra a API (~50s)
-python tools/sonda_catalogo.py probe --service "Microsoft Fabric" --price-type Reservation
-```
-
-Rodar antes de apresentar ao cliente, antes de aprovar PR que mexa em número, e
-antes de pôr valor em slide. Detalhes em [tools/README.md](tools/README.md).
-
-Para apresentar, o [roteiro de demo](ROTEIRO-DEMO.md) traz um cenário ensaiado com
-os números já conferidos, as respostas a dar, o tempo esperado de cada etapa e o
-que fazer se algo sair diferente.
-
-Falha não é necessariamente bug: se a Azure mudou um preço, a conferência falha e
-está certa em falhar — o aviso é de que uma tabela da Skill envelheceu.
-
----
-
-## Licenças
-
-Este repositório é Apache 2.0 (ver [LICENSE](LICENSE)). O
-[AzurePricingMCP](https://github.com/msftnadavbh/AzurePricingMCP) é MIT e é
-consumido via `uvx` a partir do repositório de origem, sem cópia de código — as
-duas licenças são compatíveis e não há código de terceiro vendorizado aqui.
-
----
-
 ## Equipe
 
-- **Samuel** — documentação, núcleo de preço (descontinuado com o MCP próprio)
-- **André** — esqueleto do repositório, integração dos MCPs, arquiteturas Azure
-- **Natália** — Skill, regras de resolução e validação, ferramentas de verificação,
-  teste ponta a ponta
-- **Arthur** — verificação do MCP de comunidade (AzurePricingMCP), demo
-- **Cauã Souza Almeida** — referências de arquitetura, validação dos padrões
-
-Fora do time, mas decisivos: **Cauã Pablo Carvalho** (arquiteto de soluções,
-avaliador externo), **Oscar** (Head de Dados e IA, dono do critério de aceite) e
-**Marcio** (responsável pelo programa).
+- **Samuel** — núcleo de preço, integração das tools, documentação
+- **André** — servidor MCP, automação do navegador (export)
+- **Natália** — Skill, biblioteca de padrões, testes de ponta a ponta
+- **Arthur** — integração do MCP de comunidade (AzurePricingMCP) com o MCP próprio
+- **Cauã** — redesenho da biblioteca de padrões de arquitetura
 
 ---
 
 ## Referências
 
+### Plugin e Distribuição
+
+- **Plugin URL:** https://raw.githubusercontent.com/AndreSilvaDataside/dais-cloud-calculator/main/plugin/plugin.json
+- **Repositório GitHub:** https://github.com/AndreSilvaDataside/dais-cloud-calculator
+
+### MCPs Integrados
+
 - [MCP AWS Pricing Calculator](https://github.com/aws-samples/sample-aws-pricing-calculator-mcp)
 - [MCP Azure Pricing](https://github.com/msftnadavbh/AzurePricingMCP)
+
+### Calculadoras Oficiais
+
 - [Calculadora oficial AWS](https://calculator.aws)
 - [Calculadora oficial Azure](https://calculator.microsoft.com)
 - [Azure Retail Prices API](https://prices.azure.com/api/retail/prices)
 - [Calculadora Databricks](https://www.databricks.com/product/pricing)
-- [Instalação](plugin/INSTALL.md)
 
 ---
 
@@ -191,7 +208,7 @@ avaliador externo), **Oscar** (Head de Dados e IA, dono do critério de aceite) 
 | 01/07 – 03/07 | Aprimoramento do protótipo com base no feedback                      | Feito — modo conversacional, sugestão de arquitetura pelo Claude, arquiteturas padrão Dataside AWS cadastradas       |
 | 03/07         | **DATA FINAL DE ENTREGA — Aceleras**                                 | ✅                                                                                                                   |
 
-### Cronograma 1 (29/07 – 28/08) — histórico, abordagem substituída
+### Fase atual — Produto real · Cronograma 1 (29/07 – 28/08) — histórico, abordagem substituída
 
 > **Registro histórico. Não é plano de trabalho.**
 >
@@ -203,7 +220,7 @@ avaliador externo), **Oscar** (Head de Dados e IA, dono do critério de aceite) 
 > **Substituído em 09/09.** Depois da apresentação ao arquiteto de soluções em
 > 01/09, o time decidiu reconstruir sobre o repositório de Skill, consumindo o
 > [AzurePricingMCP](https://github.com/msftnadavbh/AzurePricingMCP) via `uvx` em
-> vez do MCP próprio. Com isso caíram: os *resolvers*, o `retail_client.py`, o
+> vez do MCP próprio. Com isso caíram: os _resolvers_, o `retail_client.py`, o
 > `server.py` FastMCP e todo o `export_estimate` via Playwright.
 >
 > Mantido aqui porque explica de onde vieram as decisões, e porque o MCP antigo
@@ -254,49 +271,50 @@ Samuel, Arthur e André trocam o MCP próprio pelo
 
 > **Corrigido em 14/09.** A versão anterior deste cronograma descrevia tarefas que
 > foram canceladas com a decisão de 09/09 — adequar o código do AzurePricingMCP à
-> estrutura do projeto, integrá-lo ao MCP Playwright, e afinar *resolvers*. Nada
+> estrutura do projeto, integrá-lo ao MCP Playwright, e afinar _resolvers_. Nada
 > disso existe na entrega atual: o AzurePricingMCP é consumido via `uvx` sem cópia
 > de código, não há Playwright, e não há resolver. As linhas abaixo descrevem o que
 > foi efetivamente feito.
 
 #### Bloco 1 — Descoberta e planejamento · 07/09 – 11/09
 
-| Membro      | Tarefa                                                                                              | Cumprido |
-| ----------- | --------------------------------------------------------------------------------------------------- | :------: |
-| **Natália** | Revisar os padrões atuais e levantar o que muda no redesenho                                        |    ✅    |
-| **Cauã**    | Levantar referências de arquitetura para orientar as novas versões dos padrões                      |          |
-| **Samuel**  | Rodar o AzurePricingMCP localmente e mapear suas tools/capacidades                                   |          |
-| **Arthur**  | Comparar tools do AzurePricingMCP com as do MCP próprio e listar sobreposições/lacunas               |          |
-| **André**   | Integrar o AzurePricingMCP via `uvx` no `.mcp.json`                                                  |    ✅    |
+| Membro      | Tarefa                                                                                 | Cumprido |
+| ----------- | -------------------------------------------------------------------------------------- | :------: |
+| **Natália** | Revisar os padrões atuais e levantar o que muda no redesenho                           |    ✅    |
+| **Cauã**    | Levantar referências de arquitetura para orientar as novas versões dos padrões         |          |
+| **Samuel**  | Rodar o AzurePricingMCP localmente e mapear suas tools/capacidades                     |          |
+| **Arthur**  | Comparar tools do AzurePricingMCP com as do MCP próprio e listar sobreposições/lacunas |          |
+| **André**   | Integrar o AzurePricingMCP via `uvx` no `.mcp.json`                                    |    ✅    |
 
 #### Bloco 2 — Execução · 14/09 – 16/09
 
-| Membro      | Tarefa                                                                                                          | Cumprido |
-| ----------- | ----------------------------------------------------------------------------------------------------------------- | :------: |
+| Membro      | Tarefa                                                                                                                                                                                       | Cumprido |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------: |
 | **Natália** | Reescrever a camada Azure da Skill: Fabric calculado por CU, chave de resolução de cinco campos, allowlist por serviço, oito gates de validação, separação clássico/serverless em Databricks |    ✅    |
-| **Natália** | `tools/sonda_catalogo.py` e `tools/valida_precos.py`: verificação dos preços da Skill contra a Retail Prices API |    ✅    |
-| **Natália** | Teste ponta a ponta em três cenários (Fabric, Databricks, ADLS + Private Endpoint) e correção das lacunas achadas |    ✅    |
-| **Natália** | Documentar o que o MCP realmente devolve — ele não expõe `meterName` nem `tierMinimumUnits`, então a allowlist é a fonte de preço; mais 9 serviços na allowlist |    ✅    |
-| **Natália** | Carimbar a região na allowlist: os preços são de `brazilsouth` e não há fator de correção regional |    ✅    |
-| **André**   | Cadastrar as 5 arquiteturas padrão Dataside para Azure na Skill                                                  |    ✅    |
-| **Cauã**    | Validar os padrões cadastrados contra as referências de arquitetura                                              |          |
-| **Samuel**  | Corrigir README e cronograma; registrar por escrito a decisão sobre o link e o escopo                            |          |
-| **Arthur**  | Verificar a cobertura do AzurePricingMCP para os serviços em escopo                                              |          |
+| **Natália** | `tools/sonda_catalogo.py` e `tools/valida_precos.py`: verificação dos preços da Skill contra a Retail Prices API                                                                             |    ✅    |
+| **Natália** | Teste ponta a ponta em três cenários (Fabric, Databricks, ADLS + Private Endpoint) e correção das lacunas achadas                                                                            |    ✅    |
+| **Natália** | Documentar o que o MCP realmente devolve — ele não expõe `meterName` nem `tierMinimumUnits`, então a allowlist é a fonte de preço; mais 9 serviços na allowlist                              |    ✅    |
+| **Natália** | Carimbar a região na allowlist: os preços são de `brazilsouth` e não há fator de correção regional                                                                                           |    ✅    |
+| **André**   | Cadastrar as 5 arquiteturas padrão Dataside para Azure na Skill                                                                                                                              |    ✅    |
+| **Cauã**    | Validar os padrões cadastrados contra as referências de arquitetura                                                                                                                          |          |
+| **Samuel**  | Corrigir README e cronograma; registrar por escrito a decisão sobre o link e o escopo                                                                                                        |          |
+| **Arthur**  | Verificar a cobertura do AzurePricingMCP para os serviços em escopo                                                                                                                          |          |
 
 #### Bloco 3 — Fechamento e entrega · 17/09 – 18/09
 
 > **Proposta de antecipação da demo para 16/09.** O desenvolvimento acabou e está
 > mergeado no `develop`, e a preparação da demo já tem roteiro ensaiado com números
 > conferidos ([ROTEIRO-DEMO.md](ROTEIRO-DEMO.md))
-| Membro                      | Tarefa                                                                                             | Cumprido |
-| --------------------------- | ---------------------------------------------------------------------------------------------------- | :------: |
+
+| Membro                      | Tarefa                                                                                                                                                                    | Cumprido |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------: |
 | **Natália**                 | Retestar a Skill com as arquiteturas Azure cadastradas — 6 cenários, 6 acertos, incluindo o par difícil (Arq 1 × Arq 5) e um que corretamente não casou com padrão nenhum |    ✅    |
-| **Natália**                 | Preparar o roteiro de demo: cenário ensaiado, 22 linhas conferidas, tempo medido por etapa          |    ✅    |
-| **Cauã**                    | Validar as arquiteturas cadastradas contra as referências de arquitetura                            |          |
-| **André**                   | Resolver o modelo de instalação da Skill: `.gitignore` ignora `.claude/`, então a cópia executada não é versionada e precisa ser refeita a cada edição |          |
-| **Todos**                   | Confirmar com o arquiteto se Azure Data Factory e Power BI entram nas propostas                     |          |
-| **Samuel + Arthur + André** | Apresentar a demo (roteiro pronto)                                                                  |          |
-| **Todos**                   | Revisão final e lançamento de horas no Dataflow                                                     |          |
+| **Natália**                 | Preparar o roteiro de demo: cenário ensaiado, 22 linhas conferidas, tempo medido por etapa                                                                                |    ✅    |
+| **Cauã**                    | Validar as arquiteturas cadastradas contra as referências de arquitetura                                                                                                  |          |
+| **André**                   | Resolver o modelo de instalação da Skill: `.gitignore` ignora `.claude/`, então a cópia executada não é versionada e precisa ser refeita a cada edição                    |          |
+| **Todos**                   | Confirmar com o arquiteto se Azure Data Factory e Power BI entram nas propostas                                                                                           |          |
+| **Samuel + Arthur + André** | Apresentar a demo (roteiro pronto)                                                                                                                                        |          |
+| **Todos**                   | Revisão final e lançamento de horas no Dataflow                                                                                                                           |          |
 
 **O que ainda pode mexer na entrega:** a confirmação do arquiteto sobre Azure Data
 Factory e Power BI. Se Power BI entrar nas propostas, muda o formato de saída da
