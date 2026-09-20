@@ -260,15 +260,15 @@ Samuel, Arthur e André trocam o MCP próprio pelo
 > mergeado no `develop`, e a preparação da demo já tem roteiro ensaiado com números
 > conferidos ([ROTEIRO-DEMO.md](ROTEIRO-DEMO.md))
 
-| Membro                      | Tarefa                                                                                                                                                                    | Cumprido |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------: |
-| **Natália**                 | Retestar a Skill com as arquiteturas Azure cadastradas — 6 cenários, 6 acertos, incluindo o par difícil (Arq 1 × Arq 5) e um que corretamente não casou com padrão nenhum |    ✅    |
-| **Natália**                 | Preparar o roteiro de demo: cenário ensaiado, 22 linhas conferidas, tempo medido por etapa                                                                                |    ✅    |
-| **Cauã**                    | Validar as arquiteturas cadastradas contra as referências de arquitetura                                                                                                  |          |
+| Membro                      | Tarefa                                                                                                                                                                                                 | Cumprido |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------: |
+| **Natália**                 | Retestar a Skill com as arquiteturas Azure cadastradas — 6 cenários, 6 acertos, incluindo o par difícil (Arq 1 × Arq 5) e um que corretamente não casou com padrão nenhum                              |    ✅    |
+| **Natália**                 | Preparar o roteiro de demo: cenário ensaiado, 22 linhas conferidas, tempo medido por etapa                                                                                                             |    ✅    |
+| **Cauã**                    | Validar as arquiteturas cadastradas contra as referências de arquitetura                                                                                                                               |          |
 | **André**                   | Resolver o modelo de instalação da Skill: `.gitignore` ignora `.claude/`, então a cópia executada não é versionada e precisa ser refeita a cada edição — resolvido no Bloco 4 (empacotado como plugin) |    ✅    |
-| **Todos**                   | Confirmar com o arquiteto se Azure Data Factory e Power BI entram nas propostas                                                                                           |          |
-| **Samuel + Arthur + André** | Apresentar a demo (roteiro pronto)                                                                                                                                        |          |
-| **Todos**                   | Revisão final e lançamento de horas no Dataflow                                                                                                                           |          |
+| **Todos**                   | Confirmar com o arquiteto se Azure Data Factory e Power BI entram nas propostas                                                                                                                        |          |
+| **Samuel + Arthur + André** | Apresentar a demo (roteiro pronto)                                                                                                                                                                     |          |
+| **Todos**                   | Revisão final e lançamento de horas no Dataflow                                                                                                                                                        |          |
 
 **O que ainda pode mexer na entrega:** a confirmação do arquiteto sobre Azure Data
 Factory e Power BI. Se Power BI entrar nas propostas, muda o formato de saída da
@@ -282,17 +282,10 @@ externo) e o booking no Dataflow. Encurtar prazo não acelera nenhuma das duas.
 
 #### Bloco 4 — Empacotamento como plugin do Claude Code · 20/09 – 20/09
 
-| Membro    | Tarefa                                                                                                                                | Cumprido |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------- | :------: |
-| **André** | Reestruturar o projeto como plugin do Claude Code: `.claude-plugin/plugin.json` e `.claude-plugin/marketplace.json` na raiz do repositório | ✅ |
-| **André** | Migrar `skills/cotar_cloud/SKILL_unified.md` para `skills/cotar_cloud/SKILL.md` (nome exigido pelo Claude Code), com `name: cotar_cloud` fixo no frontmatter para manter a invocação estável | ✅ |
-| **André** | Mover a configuração dos MCP servers (AWS via `npx`, Azure via `uvx`) do antigo `.mcp.json` para `mcpServers` dentro do `plugin.json` | ✅ |
-| **André** | Corrigir erro de validação do manifesto na instalação (`repository` precisa ser string, não objeto no estilo `package.json`) | ✅ |
-| **André** | Reescrever `.claude-plugin/INSTALL.md` com o fluxo real de instalação: CLI (`/plugin marketplace add` + `/plugin install`), extensão VS Code (`/plugins`) e aba "Code" do app Desktop do Claude | ✅ |
-| **André** | Testar a instalação de ponta a ponta a partir do caminho local do projeto: `/plugin marketplace add` + `/plugin install`, com `/mcp` confirmando `aws-pricing-calculator` e `azure-pricing-mcp` como *Connected* | ✅ |
+| Membro    | Tarefa                                                                                                                                     | Cumprido |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------ | :------: |
+| **André** | Reestruturar o projeto como plugin do Claude Code: `.claude-plugin/plugin.json` e `.claude-plugin/marketplace.json` na raiz do repositório |    ✅    |
 
 **Fecha em 20/09.** Resolve a pendência do Bloco 3 sobre o modelo de instalação da Skill —
 o projeto agora é instalado como plugin versionado do Claude Code (CLI, VS Code e app Desktop),
-sem cópia manual do skill a cada edição. Falta publicar (`git push`) e testar a instalação a
-partir do repositório remoto no GitHub, em vez do caminho local.
-
+sem cópia manual do skill a cada edição.
