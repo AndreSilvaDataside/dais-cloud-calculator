@@ -1,4 +1,5 @@
 ---
+name: cotar_cloud
 description: Gera estimativas de custo em nuvem (AWS e Azure) a partir de uma conversa guiada com o arquiteto. Para AWS, retorna link oficial do calculator.aws. Para Azure, retorna estimativa detalhada de custo com preços públicos via Retail Prices API.
 allowed-tools:
   - mcp__aws-pricing-calculator__search_services

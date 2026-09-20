@@ -1,0 +1,15 @@
+{
+  "name": "dais-cloud-calculator",
+  "owner": {
+    "name": "Dataside Data & AI Team",
+    "email": ""
+  },
+  "plugins": [
+    {
+      "name": "dais-cloud-calculator",
+      "source": "./",
+      "description": "Generates cloud cost estimates for AWS and Azure through guided architect conversations.",
+      "version": "2.0.0"
+    }
+  ]
+}
