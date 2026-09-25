@@ -5,10 +5,10 @@
 **1. Adicione o marketplace deste repositório:**
 
 ```
-/plugin marketplace add AndreSilvaDataside/dais-cloud-calculator
+/plugin marketplace add Dataside-Oficial/dais-cloud-calculator
 ```
 
-(ou, fora de uma sessão do Claude Code: `claude plugin marketplace add AndreSilvaDataside/dais-cloud-calculator`)
+(ou, fora de uma sessão do Claude Code: `claude plugin marketplace add Dataside-Oficial/dais-cloud-calculator`)
 
 **2. Instale o plugin:**
 
@@ -42,7 +42,7 @@ outro nome de comando (`/plugins`, no plural) e é uma UI nativa em vez de texto
 
 **2. Na aba "Marketplaces", adicione a fonte:**
 
-- Repositório já publicado no GitHub: `AndreSilvaDataside/dais-cloud-calculator`
+- Repositório já publicado no GitHub: `Dataside-Oficial/dais-cloud-calculator`
 - Ou, para testar localmente antes de dar push: o caminho da pasta do projeto no seu Mac
   (ex.: `/Users/ana/Vinicius/Dataside/dais-calculator-project`)
 
@@ -78,7 +78,7 @@ ele **provavelmente já aparece instalado na aba Code**, sem precisar repetir a 
 **3. Se não aparecer, instale por ali mesmo:**
 
 - **+** → **Plugins** → aba **Marketplaces** → adicione a fonte: o repositório do GitHub
-  (`AndreSilvaDataside/dais-cloud-calculator`, se já publicado) ou o caminho local do projeto no
+  (`Dataside-Oficial/dais-cloud-calculator`, se já publicado) ou o caminho local do projeto no
   Mac (ex.: `/Users/ana/Vinicius/Dataside/dais-calculator-project`) para testar antes do push.
 - **+** → **Plugins** → aba **Plugins** → instale e habilite `dais-cloud-calculator`.
 
@@ -117,7 +117,7 @@ olhe o painel de detalhes do plugin (lista o que "será instalado"/já instalado
 
 ## Referências
 
-- Repositório: https://github.com/AndreSilvaDataside/dais-cloud-calculator
+- Repositório: https://github.com/Dataside-Oficial/dais-cloud-calculator
 - MCP AWS Pricing Calculator: https://github.com/aws-samples/sample-aws-pricing-calculator-mcp
 - MCP Azure Pricing: https://github.com/msftnadavbh/AzurePricingMCP
 - Calculadora oficial AWS: https://calculator.aws

@@ -131,7 +131,7 @@ time, ainda não decidida — ver `tools/README.md`.
 
 ### Plugin e Distribuição
 
-- **Marketplace/Repositório GitHub:** https://github.com/AndreSilvaDataside/dais-cloud-calculator (instalação: [.claude-plugin/INSTALL.md](.claude-plugin/INSTALL.md))
+- **Marketplace/Repositório GitHub:** https://github.com/Dataside-Oficial/dais-cloud-calculator (instalação: [.claude-plugin/INSTALL.md](.claude-plugin/INSTALL.md))
 
 ### MCPs Integrados
 
